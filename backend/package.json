@@ -2,8 +2,8 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "license": "MIT",
-  "author": "aman",
+  "license": "ISC",
+  "author": "",
   "type": "module",
   "main": "index.js",
   "scripts": {
