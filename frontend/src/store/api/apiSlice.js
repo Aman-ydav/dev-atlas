@@ -1,14 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { API_BASE_URL } from "@/lib/apiHelpers";
 
-// In dev this stays "/api/v1" (relative), which vite.config.js's server.proxy
-// forwards to localhost:8000. In a split-domain deploy (static frontend on
-// Vercel, API on a separate host like Render) a relative path would resolve
-// against the frontend's own origin instead, so VITE_API_BASE_URL — the full
-// base including /api/v1 — must be set at build time to the real API origin.
-const rawBaseQuery = fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_BASE_URL || "/api/v1",
-    credentials: "include",
-});
+const rawBaseQuery = fetchBaseQuery({ baseUrl: API_BASE_URL, credentials: "include" });
 
 // The access-token cookie expires in 15 minutes; the refresh-token cookie
 // (10 days) is what POST /auth/refresh uses to silently mint a new pair.

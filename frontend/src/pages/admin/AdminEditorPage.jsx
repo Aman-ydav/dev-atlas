@@ -16,6 +16,7 @@ import { LineListEditor } from "@/components/admin/LineListEditor";
 import { KnowledgeCombobox } from "@/components/admin/KnowledgeCombobox";
 import { MarkdownField } from "@/components/admin/MarkdownField";
 import { flattenCategories } from "@/lib/flattenCategories";
+import { API_BASE_URL } from "@/lib/apiHelpers";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
 import { useUploadFileMutation } from "@/store/api/uploadApi";
@@ -78,7 +79,7 @@ const emptyForm = () => ({
 
 const resolveSlugToId = async (slug) => {
     if (!slug?.trim()) return null;
-    const res = await fetch(`/api/v1/knowledge/${slug.trim()}`, { credentials: "include" });
+    const res = await fetch(`${API_BASE_URL}/knowledge/${slug.trim()}`, { credentials: "include" });
     if (!res.ok) return null;
     const json = await res.json();
     return json.data?._id || null;

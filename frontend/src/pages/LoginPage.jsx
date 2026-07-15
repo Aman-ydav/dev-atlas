@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { GoogleIcon } from "@/components/shared/GoogleIcon";
 import { GithubIcon } from "@/components/shared/GithubIcon";
 import { useSearchParams } from "react-router-dom";
+import { API_BASE_URL } from "@/lib/apiHelpers";
 
 export default function LoginPage() {
     const [searchParams] = useSearchParams();
@@ -33,11 +34,11 @@ export default function LoginPage() {
                 )}
 
                 <div className="flex flex-col gap-2">
-                    <Button variant="outline" size="lg" className="w-full justify-center" nativeButton={false} render={<a href="/api/v1/auth/google" />}>
+                    <Button variant="outline" size="lg" className="w-full justify-center" nativeButton={false} render={<a href={`${API_BASE_URL}/auth/google`} />}>
                         <GoogleIcon className="size-4" />
                         Continue with Google
                     </Button>
-                    <Button variant="outline" size="lg" className="w-full justify-center" nativeButton={false} render={<a href="/api/v1/auth/github" />}>
+                    <Button variant="outline" size="lg" className="w-full justify-center" nativeButton={false} render={<a href={`${API_BASE_URL}/auth/github`} />}>
                         <GithubIcon className="size-4" />
                         Continue with GitHub
                     </Button>
