@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import { RotateCcwIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KnowledgeCard } from "@/components/knowledge/KnowledgeCard";
@@ -33,9 +34,16 @@ export default function RevisionPage() {
                         <EmptyMedia variant="icon">
                             <RotateCcwIcon />
                         </EmptyMedia>
-                        <EmptyTitle>Nothing due right now</EmptyTitle>
+                        <EmptyTitle>You're caught up</EmptyTitle>
                         <EmptyDescription>
-                            Mark a card "for revision" while reading it, and it'll queue up here when it's due.
+                            {data?.nextUp ? (
+                                <>
+                                    Next review {formatDistanceToNow(new Date(data.nextUp.at), { addSuffix: true })}
+                                    {data.nextUp.count > 1 ? ` (${data.nextUp.count} cards queued)` : ""}.
+                                </>
+                            ) : (
+                                "Mark a card \"for revision\" while reading it, and it'll queue up here when it's due."
+                            )}
                         </EmptyDescription>
                     </EmptyHeader>
                 </Empty>

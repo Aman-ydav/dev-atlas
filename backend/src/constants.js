@@ -28,9 +28,15 @@ export const RELATION_TYPES = [
 
 export const REVISION_RESULTS = ["forgot", "shaky", "confident"];
 
+// "forgot" is a short relearning step (minutes, not days) so a card that
+// keeps getting missed can resurface again the same session instead of
+// being stuck a fixed day out no matter how many times in a row it was
+// missed. "shaky" and "confident" use day-based ladders indexed by the
+// level after that review, since those reflect real retention rather than
+// a fresh miss.
+export const REVISION_RELEARNING_MINUTES = 10;
 export const REVISION_INTERVAL_DAYS = {
-    forgot: 1,
-    shaky: 3,
+    shaky: [1, 2, 4, 7, 14],
     confident: [7, 14, 30, 60, 90],
 };
 

@@ -20,10 +20,12 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { selectCurrentUser, selectIsAdmin } from "@/store/slices/authSlice";
+import { useGetDueForRevisionQuery } from "@/store/api/progressApi";
 
 const PRIMARY_NAV = [
     { to: "/dashboard", label: "Home", icon: HomeIcon, end: true },
@@ -43,6 +45,7 @@ export function AppSidebar() {
     const location = useLocation();
     const user = useSelector(selectCurrentUser);
     const isAdmin = useSelector(selectIsAdmin);
+    const { data: dueRevisions } = useGetDueForRevisionQuery({ page: 1, limit: 1 }, { skip: !user });
 
     return (
         <Sidebar collapsible="icon">
@@ -99,6 +102,9 @@ export function AppSidebar() {
                                             <item.icon />
                                             <span>{item.label}</span>
                                         </SidebarMenuButton>
+                                        {item.to === "/revision" && dueRevisions?.total > 0 && (
+                                            <SidebarMenuBadge>{dueRevisions.total}</SidebarMenuBadge>
+                                        )}
                                     </SidebarMenuItem>
                                 ))}
                                 {isAdmin && (
