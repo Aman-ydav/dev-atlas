@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { RepeatableRows } from "@/components/admin/RepeatableRows";
 import { LineListEditor } from "@/components/admin/LineListEditor";
+import { KnowledgeCombobox } from "@/components/admin/KnowledgeCombobox";
+import { flattenCategories } from "@/lib/flattenCategories";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
 import { useUploadFileMutation } from "@/store/api/uploadApi";
@@ -56,6 +58,7 @@ const emptyForm = () => ({
     hints: [],
     role: "frontend",
     realProjectExampleSlug: "",
+    realProjectExampleTitle: "",
     tagline: "",
     techStack: [],
     repoUrl: "",
@@ -86,6 +89,7 @@ export default function AdminEditorPage() {
 
     const { data: existing, isLoading: loadingExisting } = useGetKnowledgeBySlugQuery(slug, { skip: !isEdit });
     const { data: categories } = useGetCategoryTreeQuery();
+    const flatCategories = flattenCategories(categories);
     const { data: companies } = useGetCompaniesQuery(undefined);
     const [createKnowledge, { isLoading: creating }] = useCreateKnowledgeMutation();
     const [updateKnowledge, { isLoading: updating }] = useUpdateKnowledgeMutation();
@@ -121,6 +125,7 @@ export default function AdminEditorPage() {
             companyIds: (existing.companies || []).map((c) => c._id || c),
             relations: (existing.relations || []).map((r) => ({
                 knowledgeSlug: r.knowledge?.slug || "",
+                knowledgeTitle: r.knowledge?.title || "",
                 relationType: r.relationType,
             })),
             hints: existing.hints || [],
@@ -129,6 +134,7 @@ export default function AdminEditorPage() {
             improvements: existing.improvements || [],
             gallery: existing.gallery || [],
             realProjectExampleSlug: existing.realProjectExampleRef?.slug || "",
+            realProjectExampleTitle: existing.realProjectExampleRef?.title || "",
         });
     }, [existing]);
 
@@ -275,10 +281,16 @@ export default function AdminEditorPage() {
                     <div className="space-y-1.5">
                         <Label>Category</Label>
                         <Select value={form.category} onValueChange={(v) => set("category", v)}>
-                            <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select...">
+                                    {(value) => (value ? flatCategories.find((c) => c._id === value)?.name || value : "Select...")}
+                                </SelectValue>
+                            </SelectTrigger>
                             <SelectContent>
-                                {categories?.map((c) => (
-                                    <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+                                {flatCategories.map((c) => (
+                                    <SelectItem key={c._id} value={c._id} label={c.name}>
+                                        {"—".repeat(c.depth)} {c.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -428,20 +440,25 @@ export default function AdminEditorPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => set("relations", [...form.relations, { knowledgeSlug: "", relationType: "related_to" }])}
+                        onClick={() => set("relations", [...form.relations, { knowledgeSlug: "", knowledgeTitle: "", relationType: "related_to" }])}
                     >
                         <PlusIcon /> Add relation
                     </Button>
                 </div>
                 {form.relations.map((rel, i) => (
                     <div key={i} className="flex items-center gap-2">
-                        <Input
-                            placeholder="target card slug"
-                            value={rel.knowledgeSlug}
-                            onChange={(e) =>
-                                set("relations", form.relations.map((r, idx) => (idx === i ? { ...r, knowledgeSlug: e.target.value } : r)))
-                            }
-                        />
+                        <div className="flex-1">
+                            <KnowledgeCombobox
+                                value={rel.knowledgeTitle}
+                                excludeSlug={existing?.slug}
+                                placeholder="Search cards by title..."
+                                onSelect={(item) =>
+                                    set("relations", form.relations.map((r, idx) =>
+                                        idx === i ? { ...r, knowledgeSlug: item.slug, knowledgeTitle: item.title } : r
+                                    ))
+                                }
+                            />
+                        </div>
                         <Select
                             value={rel.relationType}
                             onValueChange={(v) => set("relations", form.relations.map((r, idx) => (idx === i ? { ...r, relationType: v } : r)))}
@@ -513,8 +530,15 @@ export default function AdminEditorPage() {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Real project example (card slug, optional)</Label>
-                            <Input value={form.realProjectExampleSlug} onChange={(e) => set("realProjectExampleSlug", e.target.value)} />
+                            <Label>Real project example (optional)</Label>
+                            <KnowledgeCombobox
+                                value={form.realProjectExampleTitle}
+                                placeholder="Search project case studies by title..."
+                                onSelect={(item) => {
+                                    set("realProjectExampleSlug", item.slug);
+                                    set("realProjectExampleTitle", item.title);
+                                }}
+                            />
                         </div>
                     </section>
                 </>

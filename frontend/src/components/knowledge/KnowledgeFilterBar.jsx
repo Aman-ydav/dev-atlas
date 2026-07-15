@@ -1,13 +1,15 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { flattenCategories } from "@/lib/flattenCategories";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
 
 const DIFFICULTIES = ["beginner", "intermediate", "advanced"];
 
 export function KnowledgeFilterBar({ filters, onChange, showCategory = true, showCompany = false }) {
-    const { data: categories } = useGetCategoryTreeQuery(undefined, { skip: !showCategory });
+    const { data: categoryTree } = useGetCategoryTreeQuery(undefined, { skip: !showCategory });
     const { data: companies } = useGetCompaniesQuery(undefined, { skip: !showCompany });
+    const categories = flattenCategories(categoryTree);
 
     const set = (key, value) => onChange({ ...filters, [key]: value === "all" ? undefined : value, page: 1 });
 
@@ -23,13 +25,15 @@ export function KnowledgeFilterBar({ filters, onChange, showCategory = true, sho
             {showCategory && (
                 <Select value={filters.category || "all"} onValueChange={(v) => set("category", v)}>
                     <SelectTrigger size="sm" className="w-40">
-                        <SelectValue placeholder="Category" />
+                        <SelectValue placeholder="Category">
+                            {(value) => (value === "all" || !value ? "Category" : categories.find((c) => c._id === value)?.name || value)}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All categories</SelectItem>
-                        {categories?.map((c) => (
-                            <SelectItem key={c._id} value={c._id}>
-                                {c.name}
+                        <SelectItem value="all" label="All categories">All categories</SelectItem>
+                        {categories.map((c) => (
+                            <SelectItem key={c._id} value={c._id} label={c.name}>
+                                {"—".repeat(c.depth)} {c.name}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -53,12 +57,14 @@ export function KnowledgeFilterBar({ filters, onChange, showCategory = true, sho
             {showCompany && (
                 <Select value={filters.company || "all"} onValueChange={(v) => set("company", v)}>
                     <SelectTrigger size="sm" className="w-40">
-                        <SelectValue placeholder="Company" />
+                        <SelectValue placeholder="Company">
+                            {(value) => (value === "all" || !value ? "Company" : companies?.find((c) => c._id === value)?.name || value)}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All companies</SelectItem>
+                        <SelectItem value="all" label="All companies">All companies</SelectItem>
                         {companies?.map((c) => (
-                            <SelectItem key={c._id} value={c._id}>
+                            <SelectItem key={c._id} value={c._id} label={c.name}>
                                 {c.name}
                             </SelectItem>
                         ))}

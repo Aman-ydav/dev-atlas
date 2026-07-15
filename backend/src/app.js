@@ -32,8 +32,14 @@ app.use(
         credentials: true,
     })
 );
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+// 16kb (the original boilerplate default) is fine for simple form-shaped
+// payloads, but a single rich Knowledge Card — full markdown explanation,
+// several code examples, mistakes, interview Q&As — routinely runs 20-30kb+
+// as JSON. Actual file uploads go through the separate multipart /uploads
+// route (multer), not this JSON body parser, so 2mb is plenty of headroom
+// for pure text/JSON without opening the door to large binary payloads here.
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
 app.use(passport.initialize());

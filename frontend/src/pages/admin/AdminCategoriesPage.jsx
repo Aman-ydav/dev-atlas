@@ -6,14 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { flattenCategories } from "@/lib/flattenCategories";
 import {
     useCreateCategoryMutation,
     useDeleteCategoryMutation,
     useGetCategoryTreeQuery,
 } from "@/store/api/categoryApi";
-
-const flatten = (nodes, depth = 0) =>
-    nodes.flatMap((node) => [{ ...node, depth }, ...flatten(node.children || [], depth + 1)]);
 
 export default function AdminCategoriesPage() {
     const { data: tree } = useGetCategoryTreeQuery();
@@ -21,7 +19,7 @@ export default function AdminCategoriesPage() {
     const [deleteCategory] = useDeleteCategoryMutation();
     const [form, setForm] = useState({ name: "", parent: "", icon: "shapes", description: "" });
 
-    const flat = flatten(tree || []);
+    const flat = flattenCategories(tree);
 
     const handleCreate = async (e) => {
         e.preventDefault();
@@ -56,11 +54,15 @@ export default function AdminCategoriesPage() {
                     <div className="space-y-1.5">
                         <Label>Parent (optional)</Label>
                         <Select value={form.parent || "none"} onValueChange={(v) => setForm({ ...form, parent: v === "none" ? "" : v })}>
-                            <SelectTrigger><SelectValue placeholder="Top-level" /></SelectTrigger>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Top-level">
+                                    {(value) => (value === "none" || !value ? "Top-level" : flat.find((c) => c._id === value)?.name || value)}
+                                </SelectValue>
+                            </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">Top-level</SelectItem>
+                                <SelectItem value="none" label="Top-level">Top-level</SelectItem>
                                 {flat.map((c) => (
-                                    <SelectItem key={c._id} value={c._id}>{"—".repeat(c.depth)} {c.name}</SelectItem>
+                                    <SelectItem key={c._id} value={c._id} label={c.name}>{"—".repeat(c.depth)} {c.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>

@@ -78,7 +78,9 @@ const getKnowledgeBySlug = asyncHandler(async (req, res) => {
         .populate("resources")
         .populate("attachments")
         .populate("companies", "name slug logoUrl")
-        .populate("author", "name avatarUrl");
+        .populate("author", "name avatarUrl")
+        .populate("relations.knowledge", "title slug type")
+        .populate("realProjectExampleRef", "title slug type");
 
     if (!knowledge) throw new ApiError(404, "Knowledge card not found");
 
