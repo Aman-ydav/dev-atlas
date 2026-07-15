@@ -3,16 +3,16 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { User } from "../models/user.model.js";
-import { issueTokens, hashToken } from "../utils/tokens.js";
+import { issueTokens, hashToken, ACCESS_TOKEN_MAX_AGE_MS, REFRESH_TOKEN_MAX_AGE_MS } from "../utils/tokens.js";
 import { COOKIE_OPTIONS, FRONTEND_URL } from "../constants.js";
 
 const REFRESH_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: REFRESH_TOKEN_MAX_AGE_MS,
 };
 const ACCESS_COOKIE_OPTIONS = {
     ...COOKIE_OPTIONS,
-    maxAge: 15 * 60 * 1000, // 15 minutes
+    maxAge: ACCESS_TOKEN_MAX_AGE_MS,
 };
 
 // Shared by /auth/google/callback and /auth/github/callback. Passport has
