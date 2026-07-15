@@ -140,17 +140,17 @@ PERSONAL_NAV = [Revision "/revision", Bookmarks "/bookmarks", (+ Admin, if selec
 **Notes:** Never instantiate `ReactMarkdown` directly anywhere else in the app — every markdown field, including inside admin previews, routes through this component so prose styling and highlighting stay in exactly one place.
 
 ### `CodeBlock`
-**Status:** to build — `components/knowledge/CodeBlock.jsx`
-**Purpose:** A single syntax-highlighted code snippet with a copy-to-clipboard button — closes the gap noted in `09-frontend-architecture.md` §6.3 and matches the `[Copy]` affordance in `14-wireframes.md` §5.
-**Key props:** `language?: string`, `code: string`.
-**Composes:** `ui/button.jsx` (icon button, `CopyIcon`/`CheckIcon` from lucide swapped on a 1.5s timeout after a successful `navigator.clipboard.writeText`), reuses the existing `.hljs` classes/theme from `index.css` — no new highlighting dependency.
-**Notes:** Used two ways: (1) as `MarkdownRenderer`'s `components={{ pre: CodeBlock }}` override, so any fenced block *inside* prose gets the copy button too; (2) called directly by `CodeExamplesList` with its structured `{label, language, code}` fields, replacing that component's current trick of re-serializing into a fake markdown string just to borrow the highlighting pipeline.
+**Status:** existing — `components/knowledge/CodeBlock.jsx`
+**Purpose:** A single syntax-highlighted code snippet with a copy-to-clipboard button, plus one special case: a ` ```mermaid ` fenced block renders as a live `MermaidDiagram` instead of code text — this is what makes a mermaid diagram embeddable inline, anywhere inside a markdown field, not just via the one dedicated `content.visualization` field.
+**Key props:** receives `children` from `ReactMarkdown`'s `pre` override (not called with `{language, code}` props directly — see Notes).
+**Composes:** `ui/button.jsx`-style icon button (`CopyIcon`/`CheckIcon` from lucide swapped on a 1.5s timeout after a successful `navigator.clipboard.writeText`), `knowledge/MermaidDiagram` (mermaid-language branch only), reuses the `.hljs`/`--code-editor-*` theme from `index.css` (`11-design-system.md` §2.8) — no new highlighting dependency.
+**Notes:** Wired in exactly one place — `MarkdownRenderer`'s `components={{ pre: CodeBlock }}` — so every fenced block inside any markdown field gets it, including one an admin drops in mid-paragraph via `MarkdownField`'s toolbar. `CodeExamplesList` does not call it directly; see below for why that's fine.
 
 ### `CodeExamplesList`
-**Status:** existing (**to extend**) — `components/knowledge/CodeExamplesList.jsx`
+**Status:** existing — `components/knowledge/CodeExamplesList.jsx`
 **Purpose:** Renders the "Code Examples" block of the skeleton — a list of `{label, language, code}` entries.
 **Key props:** `examples: { label?: string, language?: string, code: string }[]`.
-**Composes:** currently `MarkdownRenderer` (indirect, via the round-trip above); **once `CodeBlock` exists, composes `knowledge/CodeBlock` directly** — same visual result, no string reconstruction.
+**Composes:** `MarkdownRenderer` — re-serializes each `{language, code}` into a fenced markdown string and renders it through the normal pipeline, which (now that `CodeBlock` exists and is wired into that pipeline) gets the identical copy-button-plus-real-colors treatment for free. This round-trip is a stylistic characteristic, not a gap to close — there's no known reason to refactor it into a direct `CodeBlock` call with structured props.
 
 ### `HighlightableContent`
 **Status:** existing — `components/knowledge/HighlightableContent.jsx`
@@ -200,10 +200,10 @@ PERSONAL_NAV = [Revision "/revision", Bookmarks "/bookmarks", (+ Admin, if selec
 
 ### `RevisionControls`
 **Status:** existing — `components/knowledge/RevisionControls.jsx`
-**Purpose:** The bookmark/favorite/pin/mark-for-revision toggle row plus the forgot/shaky/confident recall buttons, rendered directly under the Knowledge Card header.
+**Purpose:** The bookmark/favorite/pin/mark-for-revision toggle row plus the forgot/shaky/confident recall buttons, rendered directly under the Knowledge Card header (and reused per-row on the Revision due-list page).
 **Key props:** `knowledgeId: string`.
-**Composes:** `ui/toggle.jsx`, `ui/button.jsx`, `ui/tooltip.jsx`, `ui/select.jsx` (status: not started/in progress/completed).
-**Notes:** Renders nothing for an unauthenticated user (`if (!user) return null`) — the personal-state rail simply doesn't exist for a logged-out view, rather than rendering disabled controls.
+**Composes:** `ui/toggle.jsx`, `ui/button.jsx`, `ui/tooltip.jsx`, `ui/select.jsx` (status: not started/in progress/completed), `sonner`'s `toast`.
+**Notes:** Renders nothing for an unauthenticated user (`if (!user) return null`) — the personal-state rail simply doesn't exist for a logged-out view, rather than rendering disabled controls. Each forgot/shaky/confident button shows its actual next interval before being clicked (e.g. "Forgot · 10m"), computed client-side from a small mirror of the backend's interval table, and submitting shows a toast with when the card will resurface. Deliberately does **not** display `revision.level` as a number, progress bar, or "Level X" label anywhere — `03-srs.md` FR-PROG-09 permanently bans displaying levels/streaks/scores; an earlier draft added exactly such a label and it was removed for that reason.
 
 ### `PersonalNotes`
 **Status:** existing — `components/knowledge/PersonalNotes.jsx`
@@ -244,9 +244,9 @@ PERSONAL_NAV = [Revision "/revision", Bookmarks "/bookmarks", (+ Admin, if selec
 ### `RepeatableRows`
 **Status:** existing — `components/admin/RepeatableRows.jsx`
 **Purpose:** Generic "list of small objects" editor — shared by every array-of-objects admin field: `codeExamples`, `mistakes`, `interviewQuestions`, `challenges`, `decisions`.
-**Key props:** `label: string`, `items: object[]`, `onChange: (next) => void`, `fields: { key: string, label: string, type?: "text"|"textarea" }[]`, `addButtonLabel?: string`.
-**Composes:** `ui/button.jsx`, `ui/input.jsx`, `ui/textarea.jsx`, `ui/label.jsx`.
-**Notes:** This single component is why `AdminEditorPage.jsx` doesn't have five bespoke row editors — any future array-of-objects field (on any discriminator) should reach for this before writing a new one.
+**Key props:** `label: string`, `items: object[]`, `onChange: (next) => void`, `fields: { key: string, label: string, type?: "text"|"textarea"|"markdown" }[]`, `addButtonLabel?: string`.
+**Composes:** `ui/button.jsx`, `ui/input.jsx`, `ui/textarea.jsx`, `ui/label.jsx`, `admin/MarkdownField` (for `type: "markdown"` fields).
+**Notes:** This single component is why `AdminEditorPage.jsx` doesn't have five bespoke row editors — any future array-of-objects field (on any discriminator) should reach for this before writing a new one. `type: "markdown"` is used for the sub-fields that `MarkdownRenderer` actually renders on the public side (`mistakes[].explanation`, `interviewQuestions[].idealAnswer`, `challenges[].description`) — plain `"textarea"` is used for fields that render as plain text (`decisions[].rationale`/`alternativesConsidered`, `interviewQuestions[].followUps`/`commonMistakes`), since giving those the markdown toolbar would let an admin embed an image/diagram that then renders as literal broken markdown text on the public page.
 
 ### `LineListEditor`
 **Status:** existing — `components/admin/LineListEditor.jsx`
@@ -254,6 +254,20 @@ PERSONAL_NAV = [Revision "/revision", Bookmarks "/bookmarks", (+ Admin, if selec
 **Key props:** `label?: string`, `value: string[]`, `onChange: (next: string[]) => void`, `placeholder?: string`.
 **Composes:** `ui/label.jsx`, `ui/textarea.jsx`.
 **Notes:** Splits on newline and trims/drops blanks on every change — no "add" button, no per-row delete UI, intentionally the lightest possible editor for a plain string array.
+
+### `MarkdownField`
+**Status:** existing — `components/admin/MarkdownField.jsx`
+**Purpose:** The markdown authoring field used on every long-form Knowledge Card field — a `Textarea` plus a small toolbar (Image, Diagram) and a Write/Preview toggle, so an admin can embed a Cloudinary image or a mermaid diagram inline, at the cursor, anywhere in the text, instead of only via the one dedicated `content.visualization` field.
+**Key props:** `label?: string`, `value: string`, `onChange: (next: string) => void`, `placeholder?: string`, `className?: string` (sets the min-height shared between Write and Preview).
+**Composes:** `ui/textarea.jsx`, `ui/button.jsx`, `ui/tabs.jsx` (Write/Preview), `knowledge/MarkdownRenderer` (Preview mode — the exact same renderer the public page uses, so what an admin sees in Preview is what a reader will see), `store/api/uploadApi`'s `useUploadFileMutation`.
+**Notes:** The `Textarea` stays mounted (visually hidden via a `hidden` class, not conditionally unmounted) while in Preview mode specifically so its ref and cursor position survive the tab switch — a toolbar click right after switching back to Write needs a live ref, and conditional unmounting would drop it at exactly that moment. Image insertion uses the native `HTMLTextAreaElement.setRangeText` API to splice at the cursor synchronously, rather than manual `selectionStart`/`selectionEnd` math plus a `requestAnimationFrame` cursor-restoration race.
+
+### `KnowledgeCombobox`
+**Status:** existing — `components/admin/KnowledgeCombobox.jsx`
+**Purpose:** Title-search picker for referencing another Knowledge card (relation targets, a project's "real example" reference) — replaces a plain text input where an admin previously had to type a target card's machine slug from memory.
+**Key props:** `value?: string` (display title), `onSelect: (item: { slug, title, ... }) => void`, `excludeSlug?: string` (omit the card currently being edited from its own results), `placeholder?: string`.
+**Composes:** `ui/combobox.jsx` (Base UI `Combobox` — search-as-you-type input with a results list rendered below it), `store/api/knowledgeApi`'s search query.
+**Notes:** Returns the full matched item (`{slug, title, ...}`) via `onSelect`, so the caller can persist both the machine `slug` and a human `title` for display — this is what closed two complaints at once: dropdowns/inputs surfacing raw IDs/slugs instead of names, and a "one select, results appear below it" search pattern where a plain `Select` full of hundreds of cards would be unusable.
 
 ---
 
@@ -297,8 +311,8 @@ Not bespoke components so much as fixed usage patterns — listed here because "
 | CompanyBadge | to build | `components/knowledge/CompanyBadge.jsx` |
 | RelatedTopics | existing | `components/knowledge/RelatedTopics.jsx` |
 | MarkdownRenderer | existing | `components/knowledge/MarkdownRenderer.jsx` |
-| CodeBlock | to build | `components/knowledge/CodeBlock.jsx` |
-| CodeExamplesList | existing (extend — use CodeBlock) | `components/knowledge/CodeExamplesList.jsx` |
+| CodeBlock | existing (mermaid-fence special case) | `components/knowledge/CodeBlock.jsx` |
+| CodeExamplesList | existing | `components/knowledge/CodeExamplesList.jsx` |
 | HighlightableContent | existing | `components/knowledge/HighlightableContent.jsx` |
 | HighlightToolbar | to build (extraction) | `components/knowledge/HighlightToolbar.jsx` |
 | VisualizationBlock | existing | `components/knowledge/VisualizationBlock.jsx` |
@@ -311,3 +325,5 @@ Not bespoke components so much as fixed usage patterns — listed here because "
 | Timeline | to build | `components/knowledge/Timeline.jsx` |
 | RepeatableRows | existing | `components/admin/RepeatableRows.jsx` |
 | LineListEditor | existing | `components/admin/LineListEditor.jsx` |
+| MarkdownField | existing | `components/admin/MarkdownField.jsx` |
+| KnowledgeCombobox | existing | `components/admin/KnowledgeCombobox.jsx` |
