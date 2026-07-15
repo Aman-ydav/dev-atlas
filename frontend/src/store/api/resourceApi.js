@@ -15,7 +15,11 @@ export const resourceApi = apiSlice.injectEndpoints({
             transformErrorResponse: transformError,
             invalidatesTags: ["Resource"],
         }),
+        deleteResource: builder.mutation({
+            query: (id) => ({ url: `/resources/${id}`, method: "DELETE" }),
+            invalidatesTags: ["Resource"],
+        }),
     }),
 });
 
-export const { useGetResourcesQuery, useCreateResourceMutation } = resourceApi;
+export const { useGetResourcesQuery, useCreateResourceMutation, useDeleteResourceMutation } = resourceApi;

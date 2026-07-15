@@ -6,6 +6,7 @@ const TABS = [
     { to: "/admin/knowledge/new", label: "New Card" },
     { to: "/admin/categories", label: "Categories" },
     { to: "/admin/companies", label: "Companies" },
+    { to: "/admin/resources", label: "Resources" },
     { to: "/admin/dsa-import", label: "DSA CSV Import" },
     { to: "/admin/users", label: "Users" },
 ];

@@ -28,6 +28,7 @@ import AdminEditorPage from "@/pages/admin/AdminEditorPage";
 import AdminDsaImportPage from "@/pages/admin/AdminDsaImportPage";
 import AdminCategoriesPage from "@/pages/admin/AdminCategoriesPage";
 import AdminCompaniesPage from "@/pages/admin/AdminCompaniesPage";
+import AdminResourcesPage from "@/pages/admin/AdminResourcesPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 
 export default function App() {
@@ -64,6 +65,7 @@ export default function App() {
                                 <Route path="dsa-import" element={<AdminDsaImportPage />} />
                                 <Route path="categories" element={<AdminCategoriesPage />} />
                                 <Route path="companies" element={<AdminCompaniesPage />} />
+                                <Route path="resources" element={<AdminResourcesPage />} />
                                 <Route path="users" element={<AdminUsersPage />} />
                             </Route>
                         </Route>
