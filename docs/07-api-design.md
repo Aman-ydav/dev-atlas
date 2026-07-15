@@ -16,7 +16,7 @@
 
 No endpoint returns a bare array or bare object — always wrapped. Every controller is wrapped in `asyncHandler`; errors thrown as `ApiError` are caught by the global error middleware (`backend/src/middlewares/error.middleware.js`) and serialized to the shape above.
 
-**Auth.** Stateless JWT via httpOnly cookies (`accessToken`, `refreshToken`) — never via `Authorization` header from the browser client (avoids XSS token theft; see `15-security-design.md`). `verifyJWT` middleware reads `req.cookies.accessToken`, falls back to `Authorization: Bearer` only for non-browser API clients. `verifyRole("admin")` middleware runs after `verifyJWT` on admin-only routes.
+**Auth.** Stateless JWT via httpOnly cookies (`accessToken`, `refreshToken`) — never via `Authorization` header from the browser client (avoids XSS token theft; see `15-security-design.md`). `verifyJWT` middleware reads `req.cookies.accessToken`, falls back to `Authorization: Bearer` only for non-browser API clients. Role checks run after `verifyJWT` via `verifyRole(...roles)`: content/admin routes use `verifyRole("admin", "super_admin")` (both roles have full content authority), while role-promotion (`PATCH /users/:id/role`) uses `verifyRole("super_admin")` alone — see `06-database-design.md §2` for the three-role model.
 
 **Pagination** (all list endpoints): query params `page` (default 1), `limit` (default 20, max 100). Response `data` shape:
 
@@ -37,9 +37,9 @@ No endpoint returns a bare array or bare object — always wrapped. Every contro
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/google` | public | Redirects to Google OAuth consent screen (Passport `google` strategy) |
-| GET | `/google/callback` | public | Passport callback. On success: upsert `User` (match by `providers.providerId`, else by `email` to link a second provider), issue access+refresh JWT cookies, `302` redirect to `FRONTEND_URL/auth/callback` |
+| GET | `/google/callback` | public | Passport callback. On success: upsert `User` (match by `providers.providerId`, else by `email` to link a second provider; auto-promote to `super_admin` if the email matches `SUPER_ADMIN_EMAIL`), issue access+refresh JWT cookies, `302` redirect to `FRONTEND_URL/auth/callback` |
 | GET | `/github` | public | Redirects to GitHub OAuth consent screen |
-| GET | `/github/callback` | public | Same upsert/issue/redirect flow as Google |
+| GET | `/github/callback` | public | Same upsert/issue/redirect/auto-promote flow as Google |
 | POST | `/refresh` | cookie: refreshToken | Verifies refresh token against `user.refreshTokenHash`, rotates both tokens, sets new cookies. `401` + clears cookies if invalid/reused (reuse = revoked token replay, a security event → also nulls `refreshTokenHash`, forcing full re-login) |
 | POST | `/logout` | required | Clears cookies, nulls `refreshTokenHash` |
 | GET | `/me` | required | Returns the current `User` doc (used by frontend on app boot to hydrate Redux auth state) |
@@ -51,9 +51,9 @@ No endpoint returns a bare array or bare object — always wrapped. Every contro
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | PATCH | `/me` | required | Update own `name`, `bio`, `headline`, `socialLinks`, `avatarUrl` |
-| GET | `/` | admin | List users. Query: `q` (name/email search), `role`, `isActive`, pagination |
-| PATCH | `/:id/role` | admin | Body `{ role: "admin" \| "user" }` — promote/demote |
-| PATCH | `/:id/status` | admin | Body `{ isActive: boolean }` — deactivate blocks login at `verifyJWT` |
+| GET | `/` | admin, super_admin | List users. Query: `q` (name/email search), `role`, `isActive`, pagination |
+| PATCH | `/:id/role` | **super_admin only** | Body `{ role: "user" \| "admin" \| "super_admin" }` — promote/demote. `admin` gets `403` here even though it passes every other admin check |
+| PATCH | `/:id/status` | admin, super_admin | Body `{ isActive: boolean }` — deactivate blocks login at `verifyJWT` |
 
 ## 3. Categories — `/api/v1/categories`
 

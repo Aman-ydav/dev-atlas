@@ -6,6 +6,7 @@ import {
     deleteResource,
 } from "../controllers/resource.controller.js";
 import { verifyJWT, verifyRole } from "../middlewares/auth.middleware.js";
+import { ADMIN_ROLES } from "../constants.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
     createResourceSchema,
@@ -18,17 +19,17 @@ router.get("/", getResources);
 router.post(
     "/",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(createResourceSchema),
     createResource
 );
 router.patch(
     "/:id",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(updateResourceSchema),
     updateResource
 );
-router.delete("/:id", verifyJWT, verifyRole("admin"), deleteResource);
+router.delete("/:id", verifyJWT, verifyRole(...ADMIN_ROLES), deleteResource);
 
 export default router;

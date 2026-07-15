@@ -1,6 +1,10 @@
 export const DB_NAME = "devatlas";
 
-export const USER_ROLES = ["user", "admin"];
+// super_admin: can promote/demote users to/from admin, plus everything admin can do.
+// admin: full content-management access (knowledge, categories, companies, DSA import,
+//   user list/activation) but CANNOT change anyone's role.
+export const USER_ROLES = ["user", "admin", "super_admin"];
+export const ADMIN_ROLES = ["admin", "super_admin"];
 
 export const OAUTH_PROVIDERS = ["google", "github"];
 

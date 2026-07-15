@@ -3,6 +3,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { Attachment } from "../models/attachment.model.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { ADMIN_ROLES } from "../constants.js";
 
 const createAttachment = asyncHandler(async (req, res) => {
     if (!req.file) throw new ApiError(400, "file is required");
@@ -27,7 +28,7 @@ const deleteAttachment = asyncHandler(async (req, res) => {
     if (!attachment) throw new ApiError(404, "Attachment not found");
 
     const isOwner = String(attachment.uploadedBy) === String(req.user._id);
-    if (!isOwner && req.user.role !== "admin") {
+    if (!isOwner && !ADMIN_ROLES.includes(req.user.role)) {
         throw new ApiError(403, "You do not have permission to delete this attachment");
     }
 

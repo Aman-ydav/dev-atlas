@@ -6,6 +6,7 @@ import {
     deleteCompany,
 } from "../controllers/company.controller.js";
 import { verifyJWT, verifyRole } from "../middlewares/auth.middleware.js";
+import { ADMIN_ROLES } from "../constants.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
     createCompanySchema,
@@ -18,17 +19,17 @@ router.get("/", getCompanies);
 router.post(
     "/",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(createCompanySchema),
     createCompany
 );
 router.patch(
     "/:id",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(updateCompanySchema),
     updateCompany
 );
-router.delete("/:id", verifyJWT, verifyRole("admin"), deleteCompany);
+router.delete("/:id", verifyJWT, verifyRole(...ADMIN_ROLES), deleteCompany);
 
 export default router;

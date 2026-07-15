@@ -7,6 +7,7 @@ import {
 } from "../controllers/user.controller.js";
 import { verifyJWT, verifyRole } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
+import { ADMIN_ROLES } from "../constants.js";
 import {
     updateMeSchema,
     updateRoleSchema,
@@ -18,8 +19,10 @@ router.use(verifyJWT);
 
 router.patch("/me", validate(updateMeSchema), updateMe);
 
-router.get("/", verifyRole("admin"), listUsers);
-router.patch("/:id/role", verifyRole("admin"), validate(updateRoleSchema), updateUserRole);
-router.patch("/:id/status", verifyRole("admin"), validate(updateStatusSchema), updateUserStatus);
+// Both admin and super_admin can view/activate users, but ONLY super_admin
+// can change roles — that's the one thing admin is deliberately not trusted with.
+router.get("/", verifyRole(...ADMIN_ROLES), listUsers);
+router.patch("/:id/role", verifyRole("super_admin"), validate(updateRoleSchema), updateUserRole);
+router.patch("/:id/status", verifyRole(...ADMIN_ROLES), validate(updateStatusSchema), updateUserStatus);
 
 export default router;

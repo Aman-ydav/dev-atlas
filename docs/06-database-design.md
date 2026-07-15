@@ -37,7 +37,7 @@ Nine collections total. No junction/pivot collections — many-to-many relations
   name: String,              // required, from OAuth profile
   email: String,             // required, unique, lowercase — from OAuth profile
   avatarUrl: String,         // from OAuth profile (Google/GitHub photo)
-  role: { type: String, enum: ["user", "admin"], default: "user" },
+  role: { type: String, enum: ["user", "admin", "super_admin"], default: "user" },
 
   providers: [{
     _id: false,
@@ -65,6 +65,16 @@ Nine collections total. No junction/pivot collections — many-to-many relations
 **Why no password field, ever:** auth is OAuth-only by product decision ([[ADR-0003]]); a password field would be dead weight and a future misuse temptation.
 
 **Why `providers` is an array, not two top-level fields (`googleId`/`githubId`):** the reference UX explicitly allows "log in through Google **or** GitHub" for the *same* person — modeling providers as an array keyed by (provider, providerId) lets the login controller do `find-by-provider-match OR match-by-email-then-link` cleanly, and extending to a third provider later needs zero schema migration.
+
+**The three roles:**
+
+| Role | Content management (knowledge, categories, companies, DSA import) | View/activate users | Change roles |
+|---|---|---|---|
+| `user` | no | no | no |
+| `admin` | yes | yes | **no** |
+| `super_admin` | yes | yes | yes |
+
+`admin` has every content-authoring capability but deliberately cannot promote/demote anyone — only `super_admin` can. There is no UI/API path to self-serve `super_admin`: whoever signs in (via Google or GitHub) with the email in the `SUPER_ADMIN_EMAIL` env var is auto-promoted to `super_admin` on login (`backend/src/config/passport.js`), and stays reconciled to that role on every subsequent login even if it was manually changed. This is the recovery mechanism for the "last super_admin locked themselves out" failure mode instead of a DB-level safeguard.
 
 ---
 

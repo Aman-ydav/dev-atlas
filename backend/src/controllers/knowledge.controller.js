@@ -6,14 +6,17 @@ import { Activity } from "../models/activity.model.js";
 import { generateUniqueSlug } from "../utils/slugify.js";
 import { parsePagination, buildPaginatedResponse } from "../utils/pagination.js";
 import { importDsaCsv } from "../services/csvImport.service.js";
+import { ADMIN_ROLES } from "../constants.js";
+
+const isAdminUser = (user) => ADMIN_ROLES.includes(user?.role);
 
 const SUMMARY_FIELDS =
-    "title slug type category difficulty tags readTimeMinutes updatedAt viewCount pattern role tagline companies";
+    "title slug type status category difficulty tags readTimeMinutes updatedAt viewCount pattern role tagline companies";
 
 const buildFilter = (query, user) => {
     const filter = { isDeleted: false };
 
-    if (user?.role === "admin" && query.status) {
+    if (isAdminUser(user) && query.status) {
         filter.status = query.status;
     } else {
         filter.status = "published";
@@ -23,7 +26,12 @@ const buildFilter = (query, user) => {
         const types = Array.isArray(query.type) ? query.type : query.type.split(",");
         filter.type = { $in: types };
     }
-    if (query.category) filter.category = query.category;
+    if (query.category) {
+        // Comma-separated so "Explore > All" can aggregate a parent category
+        // with its subcategories in one request instead of one exact-ID match.
+        const categoryIds = query.category.split(",").map((id) => id.trim());
+        filter.category = categoryIds.length > 1 ? { $in: categoryIds } : categoryIds[0];
+    }
     if (query.difficulty) filter.difficulty = query.difficulty;
     if (query.tags) {
         const tags = query.tags.split(",").map((t) => t.trim().toLowerCase());
@@ -74,8 +82,7 @@ const getKnowledgeBySlug = asyncHandler(async (req, res) => {
 
     if (!knowledge) throw new ApiError(404, "Knowledge card not found");
 
-    const isOwnerAdmin = req.user?.role === "admin";
-    if (knowledge.status !== "published" && !isOwnerAdmin) {
+    if (knowledge.status !== "published" && !isAdminUser(req.user)) {
         throw new ApiError(404, "Knowledge card not found");
     }
 

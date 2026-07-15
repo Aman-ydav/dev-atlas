@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import passport from "./config/passport.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
-import { authLimiter, uploadLimiter, readLimiter, writeLimiter } from "./middlewares/rateLimiter.middleware.js";
+import { uploadLimiter, readLimiter, writeLimiter } from "./middlewares/rateLimiter.middleware.js";
 
 import authRouter from "./routes/auth.routes.js";
 import userRouter from "./routes/user.routes.js";
@@ -44,7 +44,10 @@ if (process.env.NODE_ENV === "development") {
 
 app.get("/api/v1/health", (req, res) => res.status(200).json({ status: "ok" }));
 
-app.use("/api/v1/auth", authLimiter, authRouter);
+// authLimiter (strict, abuse-prevention) is applied per-route inside auth.routes.js
+// to the unauthenticated OAuth endpoints only — /me and /logout need a valid JWT
+// already, so they use the same general limiter as other authenticated routes.
+app.use("/api/v1/auth", writeLimiter, authRouter);
 app.use("/api/v1/users", writeLimiter, userRouter);
 app.use("/api/v1/categories", readLimiter, categoryRouter);
 app.use("/api/v1/companies", readLimiter, companyRouter);

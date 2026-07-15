@@ -3,6 +3,14 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import { User } from "../models/user.model.js";
 
+// The one designated super_admin, configured by email rather than seeded by
+// _id so it works identically in every environment — whoever signs in with
+// this address always ends up (or stays) super_admin, no manual DB edit needed.
+const isDesignatedSuperAdmin = (email) =>
+    Boolean(email) &&
+    Boolean(process.env.SUPER_ADMIN_EMAIL) &&
+    email.toLowerCase() === process.env.SUPER_ADMIN_EMAIL.toLowerCase();
+
 // Finds an existing user by (provider, providerId). If none, links the
 // provider onto an existing account matched by email (lets one person sign
 // in with Google today and GitHub tomorrow and land on the same account).
@@ -11,13 +19,22 @@ const findOrCreateOAuthUser = async ({ provider, providerId, name, email, avatar
     let user = await User.findOne({
         providers: { $elemMatch: { provider, providerId } },
     });
-    if (user) return user;
+    if (user) {
+        if (isDesignatedSuperAdmin(user.email) && user.role !== "super_admin") {
+            user.role = "super_admin";
+            await user.save({ validateBeforeSave: false });
+        }
+        return user;
+    }
 
     if (email) {
         user = await User.findOne({ email: email.toLowerCase() });
         if (user) {
             user.providers.push({ provider, providerId });
             if (!user.avatarUrl && avatarUrl) user.avatarUrl = avatarUrl;
+            if (isDesignatedSuperAdmin(user.email) && user.role !== "super_admin") {
+                user.role = "super_admin";
+            }
             await user.save({ validateBeforeSave: false });
             return user;
         }
@@ -28,6 +45,7 @@ const findOrCreateOAuthUser = async ({ provider, providerId, name, email, avatar
         email: email ? email.toLowerCase() : `${provider}-${providerId}@devatlas.local`,
         avatarUrl: avatarUrl || "",
         providers: [{ provider, providerId }],
+        role: isDesignatedSuperAdmin(email) ? "super_admin" : "user",
     });
 };
 

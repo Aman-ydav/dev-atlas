@@ -10,12 +10,13 @@ import {
     importDsaCsvHandler,
 } from "../controllers/knowledge.controller.js";
 import { verifyJWT, verifyRole, attachUserIfPresent } from "../middlewares/auth.middleware.js";
+import { ADMIN_ROLES } from "../constants.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import {
     createKnowledgeSchema,
     updateKnowledgeSchema,
 } from "../validators/knowledge.validator.js";
-import { upload } from "../middlewares/multer.middleware.js";
+import { uploadCsv } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
@@ -26,25 +27,25 @@ router.get("/:slug/related", getRelatedKnowledge);
 router.post(
     "/",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(createKnowledgeSchema),
     createKnowledge
 );
 router.patch(
     "/:id",
     verifyJWT,
-    verifyRole("admin"),
+    verifyRole(...ADMIN_ROLES),
     validate(updateKnowledgeSchema),
     updateKnowledge
 );
-router.post("/:id/publish", verifyJWT, verifyRole("admin"), publishKnowledge);
-router.delete("/:id", verifyJWT, verifyRole("admin"), deleteKnowledge);
+router.post("/:id/publish", verifyJWT, verifyRole(...ADMIN_ROLES), publishKnowledge);
+router.delete("/:id", verifyJWT, verifyRole(...ADMIN_ROLES), deleteKnowledge);
 
 router.post(
     "/import/dsa-csv",
     verifyJWT,
-    verifyRole("admin"),
-    upload.single("file"),
+    verifyRole(...ADMIN_ROLES),
+    uploadCsv.single("file"),
     importDsaCsvHandler
 );
 

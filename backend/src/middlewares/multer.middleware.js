@@ -11,18 +11,36 @@ const storage = multer.diskStorage({
     },
 });
 
-const ALLOWED_MIME = /^(image|video)\/|^application\/pdf$/;
+const ALLOWED_MEDIA_MIME = /^(image|video)\/|^application\/pdf$/;
 
-const fileFilter = (req, file, cb) => {
-    if (ALLOWED_MIME.test(file.mimetype)) {
+const mediaFileFilter = (req, file, cb) => {
+    if (ALLOWED_MEDIA_MIME.test(file.mimetype)) {
         cb(null, true);
     } else {
         cb(new Error("Unsupported file type. Only images, videos, and PDFs are allowed."));
     }
 };
 
+// For Attachment uploads (Cloudinary-bound): images, videos, PDFs.
 export const upload = multer({
     storage,
-    fileFilter,
+    fileFilter: mediaFileFilter,
     limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+});
+
+const ALLOWED_CSV_MIME = /^text\/csv$|^application\/(vnd\.ms-excel|csv)$/;
+
+const csvFileFilter = (req, file, cb) => {
+    if (ALLOWED_CSV_MIME.test(file.mimetype) || file.originalname.toLowerCase().endsWith(".csv")) {
+        cb(null, true);
+    } else {
+        cb(new Error("Only .csv files are allowed."));
+    }
+};
+
+// For the admin DSA bulk-import endpoint — a plain-text CSV, never uploaded to Cloudinary.
+export const uploadCsv = multer({
+    storage,
+    fileFilter: csvFileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
