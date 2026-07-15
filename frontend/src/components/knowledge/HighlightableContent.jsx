@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { XIcon } from "lucide-react";
 import { MarkdownRenderer } from "@/components/knowledge/MarkdownRenderer";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { selectCurrentUser } from "@/store/slices/authSlice";
 import {
     useCreateAnnotationMutation,
@@ -9,12 +11,23 @@ import {
     useGetAnnotationsQuery,
 } from "@/store/api/annotationApi";
 
-const COLORS = {
-    yellow: "#fde68a",
-    green: "#bbf7d0",
-    blue: "#bfdbfe",
-    pink: "#fbcfe8",
+// Mirrors backend/src/constants.js HIGHLIGHT_COLORS. Each name is a
+// .highlight-{name} class in index.css (a bg/fg token pair that swaps with
+// .dark) instead of an inline hex — see docs/11-design-system.md §2.9 for
+// why that swap matters (it's what fixes highlighted text being unreadable
+// in dark mode: a hardcoded background with `color: inherit` used to pick
+// up --foreground, which is near-white in dark mode, on a light pastel bg).
+const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"];
+const HIGHLIGHT_LABEL = {
+    yellow: "Yellow",
+    green: "Green",
+    blue: "Blue",
+    pink: "Pink",
+    purple: "Purple",
+    orange: "Orange",
 };
+const highlightClass = (color) =>
+    `highlight-mark highlight-${HIGHLIGHT_COLORS.includes(color) ? color : "yellow"}`;
 
 // Highlights are anchored by exact-quote text matching (not DOM offsets) —
 // robust across re-renders at the cost of not handling duplicate substrings
@@ -39,9 +52,7 @@ const wrapQuotesInDom = (container, annotations) => {
                 const mark = document.createElement("mark");
                 mark.dataset.annotationId = annotation._id;
                 mark.title = annotation.note || "";
-                mark.style.backgroundColor = COLORS[annotation.color] || COLORS.yellow;
-                mark.style.borderRadius = "2px";
-                mark.style.color = "inherit";
+                mark.className = highlightClass(annotation.color);
                 try {
                     range.surroundContents(mark);
                 } catch {
@@ -110,15 +121,23 @@ export function HighlightableContent({ knowledgeId, block, content }) {
                     className="absolute z-10 flex items-center gap-1 rounded-full border border-border bg-popover p-1 shadow-(--shadow)"
                     style={{ top: selectionToolbar.top, left: selectionToolbar.left }}
                 >
-                    {Object.entries(COLORS).map(([name, hex]) => (
-                        <button
-                            key={name}
-                            type="button"
-                            aria-label={`Highlight ${name}`}
-                            className="size-5 rounded-full border border-border"
-                            style={{ backgroundColor: hex }}
-                            onClick={() => applyHighlight(name)}
-                        />
+                    {HIGHLIGHT_COLORS.map((name) => (
+                        <Tooltip key={name}>
+                            <TooltipTrigger
+                                render={
+                                    <button
+                                        type="button"
+                                        aria-label={`Highlight ${HIGHLIGHT_LABEL[name]}`}
+                                        className={cn(
+                                            "size-5 rounded-full border border-border transition-transform hover:scale-110 active:scale-95",
+                                            `highlight-${name}`
+                                        )}
+                                        onClick={() => applyHighlight(name)}
+                                    />
+                                }
+                            />
+                            <TooltipContent>{HIGHLIGHT_LABEL[name]}</TooltipContent>
+                        </Tooltip>
                     ))}
                     <button
                         type="button"
@@ -142,10 +161,7 @@ export function HighlightableContent({ knowledgeId, block, content }) {
                             key={annotation._id}
                             className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
                         >
-                            <span
-                                className="size-2 rounded-full"
-                                style={{ backgroundColor: COLORS[annotation.color] }}
-                            />
+                            <span className={cn("size-2 rounded-full", `highlight-${HIGHLIGHT_COLORS.includes(annotation.color) ? annotation.color : "yellow"}`)} />
                             <span className="max-w-40 truncate">"{annotation.quote}"</span>
                             <button
                                 type="button"

@@ -45,6 +45,15 @@ const relationSchema = z.object({
     relationType: z.enum(RELATION_TYPES),
 });
 
+// One ordered chapter of a case study — reuses the same codeExampleSchema/
+// visualizationSchema Zod shapes as contentSchema above.
+const sectionSchema = z.object({
+    title: z.string().min(1),
+    body: z.string().optional(),
+    visualization: visualizationSchema.optional(),
+    codeExamples: z.array(codeExampleSchema).optional(),
+});
+
 // Base fields shared by every type, plus every discriminator's fields as
 // optional — the controller only persists the ones relevant to `type`.
 export const createKnowledgeSchema = z.object({
@@ -78,10 +87,7 @@ export const createKnowledgeSchema = z.object({
     techStack: z.array(z.string()).optional(),
     repoUrl: z.string().optional(),
     demoUrl: z.string().optional(),
-    architectureNotes: z.string().optional(),
-    databaseNotes: z.string().optional(),
-    apiNotes: z.string().optional(),
-    deploymentNotes: z.string().optional(),
+    sections: z.array(sectionSchema).optional(),
     challenges: z.array(z.object({ title: z.string().optional(), description: z.string().optional() })).optional(),
     decisions: z
         .array(

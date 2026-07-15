@@ -20,6 +20,17 @@ const RESULTS = [
     { key: "confident", label: "Confident" },
 ];
 
+// Base UI's <Select.Value> renders the raw value unless the Root is given an
+// `items` map — without it, the trigger showed "in_progress" verbatim while
+// the open popup (which reads SelectItem's own children) correctly showed
+// "In progress". Passing this as `items` fixes the trigger; the map is also
+// reused to build SelectContent below so the label only lives in one place.
+const STATUS_LABEL = {
+    not_started: "Not started",
+    in_progress: "In progress",
+    completed: "Completed",
+};
+
 // Mirrors backend/src/constants.js REVISION_RELEARNING_MINUTES / REVISION_INTERVAL_DAYS
 // — preview-only, so the buttons can show "next review in ~X" before the
 // click; the server is the source of truth for the real scheduled value.
@@ -57,6 +68,7 @@ export function RevisionControls({ knowledgeId }) {
     return (
         <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border p-3">
             <Select
+                items={STATUS_LABEL}
                 value={progress?.status || "not_started"}
                 onValueChange={(status) => updateProgress({ knowledgeId, status })}
             >
@@ -64,9 +76,9 @@ export function RevisionControls({ knowledgeId }) {
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="not_started">Not started</SelectItem>
-                    <SelectItem value="in_progress">In progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
 

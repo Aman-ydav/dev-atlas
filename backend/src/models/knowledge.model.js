@@ -36,6 +36,23 @@ const visualizationSchema = new Schema(
     { _id: false }
 );
 
+// One ordered "chapter" of a case study — replaces the 4 fixed markdown
+// slots (architectureNotes/databaseNotes/apiNotes/deploymentNotes) that
+// used to live directly on ProjectKnowledge. Reuses codeExampleSchema/
+// visualizationSchema as-is so VisualizationBlock/CodeExamplesList render
+// a section exactly like they already render the top-level `content` field
+// — no new rendering component needed. Array position is the order, same
+// convention as challenges/decisions below.
+const sectionSchema = new Schema(
+    {
+        title: { type: String, required: true, trim: true },
+        body: { type: String, default: "" },
+        visualization: { type: visualizationSchema, default: () => ({}) },
+        codeExamples: { type: [codeExampleSchema], default: [] },
+    },
+    { _id: false }
+);
+
 const contentSchema = new Schema(
     {
         tldr: { type: String, default: "" },
@@ -154,10 +171,7 @@ export const ProjectKnowledge = Knowledge.discriminator(
             techStack: { type: [String], default: [] },
             repoUrl: { type: String, default: "" },
             demoUrl: { type: String, default: "" },
-            architectureNotes: { type: String, default: "" },
-            databaseNotes: { type: String, default: "" },
-            apiNotes: { type: String, default: "" },
-            deploymentNotes: { type: String, default: "" },
+            sections: { type: [sectionSchema], default: [] },
             challenges: {
                 type: [{ title: String, description: String, _id: false }],
                 default: [],

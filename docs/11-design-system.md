@@ -94,6 +94,23 @@ A second deliberate, permanent exception alongside §2.5's `--destructive` — r
 
 Don't treat this as license to add color elsewhere "because code blocks have it" — it's exactly as narrow as §2.5's red, just for a different content type.
 
+### 2.9 Semantic exception: highlighter marks
+
+A third deliberate exception, same shape as §2.5 and §2.8: the text-highlighter feature (`HighlightableContent.jsx`) lets a signed-in reader select a phrase in a `tldr`/`explanation` block and mark it in one of six colors, the same way a physical highlighter pen works on paper. This has been real, shipped product behavior since before this document existed (`Annotation.color`, `HIGHLIGHT_COLORS` in `backend/src/constants.js`) — it just wasn't tokenized or documented yet, and its dark-mode behavior was broken (see below).
+
+| Token pair | Light | Dark |
+|---|---|---|
+| `--highlight-yellow-bg` / `-fg` | `oklch(0.93 0.14 95)` / `oklch(0.32 0.09 95)` | `oklch(0.4 0.1 95)` / `oklch(0.94 0.09 95)` |
+| `--highlight-green-bg` / `-fg` | `oklch(0.92 0.11 155)` / `oklch(0.3 0.09 155)` | `oklch(0.38 0.09 155)` / `oklch(0.92 0.09 155)` |
+| `--highlight-blue-bg` / `-fg` | `oklch(0.91 0.06 250)` / `oklch(0.32 0.1 250)` | `oklch(0.38 0.08 250)` / `oklch(0.92 0.06 250)` |
+| `--highlight-pink-bg` / `-fg` | `oklch(0.91 0.07 350)` / `oklch(0.35 0.13 350)` | `oklch(0.38 0.1 350)` / `oklch(0.92 0.07 350)` |
+| `--highlight-purple-bg` / `-fg` | `oklch(0.91 0.07 300)` / `oklch(0.34 0.12 300)` | `oklch(0.38 0.1 300)` / `oklch(0.92 0.07 300)` |
+| `--highlight-orange-bg` / `-fg` | `oklch(0.9 0.13 55)` / `oklch(0.33 0.11 55)` | `oklch(0.38 0.11 55)` / `oklch(0.93 0.1 55)` |
+
+Purple and orange are new (the original set was yellow/green/blue/pink); both were added in the same pass that tokenized the rest, on the reasoning that a highlighter with more color choices is more useful, not less restrained — these mark *content the reader chose to emphasize*, not UI chrome, so they don't compete with §1's "color does not carry meaning in the interface" rule any more than §2.8's code syntax colors do.
+
+**What was actually broken before tokenization:** `HighlightableContent.jsx` built each `<mark>` with an inline `style.backgroundColor` set to a hardcoded hex and `style.color: inherit`. `inherit` resolved to `--foreground` — near-black in light mode, near-white in dark — completely decoupled from the fixed light-pastel background, so dark mode rendered near-white text on a near-white-ish pastel highlight (the reported bug: highlighted text unreadable in dark mode). Each color is now a single `.highlight-{color}` class carrying both a `bg` and a matching `fg` from the table above, so the pair always swaps together with `.dark` instead of `fg` drifting off on its own. All twelve pairs (six colors × two modes) were checked against real WCAG contrast math (OKLCH → linear sRGB → relative luminance), same bar `--muted-foreground`'s code comment already holds itself to — every pair lands between 7.6:1 and 10.6:1 text-on-highlight contrast, comfortably past the 4.5:1 AA floor for normal text in both themes.
+
 ---
 
 ## 3. Radius Scale
@@ -176,7 +193,7 @@ Stated explicitly, as a checklist a code reviewer can actually apply:
 - [ ] No colored `box-shadow` or `filter: drop-shadow` used as a glow/halo effect. (Neutral shadows for floating layers, §6, are fine — a shadow that reads as "this panel is above the page" is not the same thing as a shadow used to make an element look like it's emitting light.)
 - [ ] No new CSS color variable introduced without a recorded product decision — "it needs to stand out" is answered with type weight or an icon, not a new hue.
 - [ ] No neon/saturated accent color used for emphasis — emphasis is `font-semibold`, a `Badge`, or an icon, never a color shift into a hue that isn't already in the neutral ramp.
-- [ ] The only permitted hues in the entire product surface are the destructive red (§2.5) and code block syntax highlighting (§2.8) — treat any other colored pixel found in review as a bug, including (especially) the two exceptions named in §2.6, which exist purely because nobody has cleaned them up yet, not because they're allowed.
+- [ ] The only permitted hues in the entire product surface are the destructive red (§2.5), code block syntax highlighting (§2.8), and the six highlighter-mark colors (§2.9) — treat any other colored pixel found in review as a bug, including (especially) the two exceptions named in §2.6, which exist purely because nobody has cleaned them up yet, not because they're allowed.
 
 **Why this is enforced so specifically, not just "keep it minimal":** DevAtlas's core philosophy (`01-product-vision.md`) is explicit that this is a knowledge engine, not a gamified habit tracker or a marketing surface — no streaks, no XP, no badges-as-rewards, no vanity charts. A restrained, colorless UI is the visual expression of that same discipline: nothing on screen is designed to trigger a dopamine response or manufacture urgency. The interface's only job is to get out of the way of 2,000 words of technical explanation, a code block, and a diagram. Every gradient or glow this rule blocks is a small vote for "app," and DevAtlas is explicitly trying not to be one — it's the notebook, not the game.
 

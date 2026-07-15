@@ -4,16 +4,23 @@ import rehypeHighlight from "rehype-highlight";
 import { cn } from "@/lib/utils";
 import { CodeBlock } from "@/components/knowledge/CodeBlock";
 
-const components = {
+const baseComponents = {
     // Fenced code blocks (```lang) get the editor-style CodeBlock wrapper;
     // inline `code` spans pass through untouched (styled via the [&_code...] rule below).
     pre: CodeBlock,
 };
 
+// Comments require no image embeds — this swaps `img` to render nothing
+// rather than filtering the markdown source, so a pasted `![]()` just
+// silently drops instead of needing a separate sanitize step. Image
+// *styling* lives entirely in the wrapper div's Tailwind selectors below,
+// not in `components`, so this doesn't risk any existing caller's rendering.
+const noImageComponents = { ...baseComponents, img: () => null };
+
 // One prose ruleset for every rendered block (tldr, explanation, mistakes,
-// interview answers, project notes) — this is the "one long page, no tabs"
-// content typography from docs/11-design-system.md.
-export function MarkdownRenderer({ content, className }) {
+// interview answers, project notes, comments) — this is the "one long page,
+// no tabs" content typography from docs/11-design-system.md.
+export function MarkdownRenderer({ content, className, disableImages = false }) {
     if (!content) return null;
 
     return (
@@ -38,7 +45,11 @@ export function MarkdownRenderer({ content, className }) {
                 className
             )}
         >
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={disableImages ? noImageComponents : baseComponents}
+            >
                 {content}
             </ReactMarkdown>
         </div>

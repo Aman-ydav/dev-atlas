@@ -15,7 +15,9 @@ import { RepeatableRows } from "@/components/admin/RepeatableRows";
 import { LineListEditor } from "@/components/admin/LineListEditor";
 import { KnowledgeCombobox } from "@/components/admin/KnowledgeCombobox";
 import { MarkdownField } from "@/components/admin/MarkdownField";
+import { SectionsEditor } from "@/components/admin/SectionsEditor";
 import { flattenCategories } from "@/lib/flattenCategories";
+import { DIFFICULTY_LABEL } from "@/components/knowledge/DifficultyBadge";
 import { API_BASE_URL } from "@/lib/apiHelpers";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
@@ -34,6 +36,16 @@ const INTERVIEW_ROLES = [
     "hr", "frontend", "backend", "javascript", "react", "database",
     "dbms", "sql", "os", "cn", "system-design", "project-discussion",
 ];
+
+// Base UI's <Select.Value> only shows a label when the Root gets an `items`
+// map — omitting it (as every Select below used to) renders the raw stored
+// value in the trigger ("in_progress", "-createdAt", etc). These maps feed
+// `items` and double as the single source of truth for each SelectContent.
+const TYPE_LABEL = { concept: "Concept", dsa: "DSA", interview: "Interview", project: "Case Study" };
+const STATUS_LABEL = { draft: "Draft", published: "Published", archived: "Archived" };
+const VISUALIZATION_LABEL = { none: "None", mermaid: "Mermaid diagram", flow: "Flow (advanced JSON)" };
+const RELATION_TYPE_ITEMS = Object.fromEntries(RELATION_TYPES.map((t) => [t, t.replace(/_/g, " ")]));
+const INTERVIEW_ROLE_ITEMS = Object.fromEntries(INTERVIEW_ROLES.map((r) => [r, r.replace(/-/g, " ")]));
 
 const emptyForm = () => ({
     title: "",
@@ -66,10 +78,7 @@ const emptyForm = () => ({
     techStack: [],
     repoUrl: "",
     demoUrl: "",
-    architectureNotes: "",
-    databaseNotes: "",
-    apiNotes: "",
-    deploymentNotes: "",
+    sections: [],
     challenges: [],
     decisions: [],
     lessonsLearned: [],
@@ -133,6 +142,16 @@ export default function AdminEditorPage() {
             })),
             hints: existing.hints || [],
             techStack: existing.techStack || [],
+            sections: (existing.sections || []).map((s) => ({
+                title: s.title || "",
+                body: s.body || "",
+                visualization: {
+                    kind: s.visualization?.kind || "none",
+                    mermaidSource: s.visualization?.mermaidSource || "",
+                    flowJson: s.visualization?.flow ? JSON.stringify(s.visualization.flow, null, 2) : "",
+                },
+                codeExamples: s.codeExamples || [],
+            })),
             lessonsLearned: existing.lessonsLearned || [],
             improvements: existing.improvements || [],
             gallery: existing.gallery || [],
@@ -184,6 +203,25 @@ export default function AdminEditorPage() {
 
         const realProjectExampleRef = form.type === "interview" ? await resolveSlugToId(form.realProjectExampleSlug) : undefined;
 
+        const sections = [];
+        for (const s of form.sections) {
+            let sectionFlow = null;
+            if (s.visualization.kind === "flow" && s.visualization.flowJson.trim()) {
+                try {
+                    sectionFlow = JSON.parse(s.visualization.flowJson);
+                } catch {
+                    toast.error(`Section "${s.title || "Untitled"}" has invalid Flow JSON — check the syntax`);
+                    return;
+                }
+            }
+            sections.push({
+                title: s.title,
+                body: s.body,
+                visualization: { kind: s.visualization.kind, mermaidSource: s.visualization.mermaidSource, flow: sectionFlow },
+                codeExamples: s.codeExamples,
+            });
+        }
+
         const payload = {
             title: form.title,
             type: form.type,
@@ -227,10 +265,7 @@ export default function AdminEditorPage() {
                 techStack: form.techStack,
                 repoUrl: form.repoUrl,
                 demoUrl: form.demoUrl,
-                architectureNotes: form.architectureNotes,
-                databaseNotes: form.databaseNotes,
-                apiNotes: form.apiNotes,
-                deploymentNotes: form.deploymentNotes,
+                sections,
                 challenges: form.challenges,
                 decisions: form.decisions,
                 lessonsLearned: form.lessonsLearned,
@@ -268,13 +303,12 @@ export default function AdminEditorPage() {
                     </div>
                     <div className="space-y-1.5">
                         <Label>Type</Label>
-                        <Select value={form.type} onValueChange={(v) => set("type", v)} disabled={isEdit}>
+                        <Select items={TYPE_LABEL} value={form.type} onValueChange={(v) => set("type", v)} disabled={isEdit}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="concept">Concept</SelectItem>
-                                <SelectItem value="dsa">DSA</SelectItem>
-                                <SelectItem value="interview">Interview</SelectItem>
-                                <SelectItem value="project">Project</SelectItem>
+                                {Object.entries(TYPE_LABEL).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -300,23 +334,23 @@ export default function AdminEditorPage() {
                     </div>
                     <div className="space-y-1.5">
                         <Label>Difficulty</Label>
-                        <Select value={form.difficulty} onValueChange={(v) => set("difficulty", v)}>
+                        <Select items={DIFFICULTY_LABEL} value={form.difficulty} onValueChange={(v) => set("difficulty", v)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="beginner">Beginner</SelectItem>
-                                <SelectItem value="intermediate">Intermediate</SelectItem>
-                                <SelectItem value="advanced">Advanced</SelectItem>
+                                {Object.entries(DIFFICULTY_LABEL).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
                     <div className="space-y-1.5">
                         <Label>Status</Label>
-                        <Select value={form.status} onValueChange={(v) => set("status", v)}>
+                        <Select items={STATUS_LABEL} value={form.status} onValueChange={(v) => set("status", v)}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="published">Published</SelectItem>
-                                <SelectItem value="archived">Archived</SelectItem>
+                                {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -385,12 +419,12 @@ export default function AdminEditorPage() {
                             </TooltipContent>
                         </Tooltip>
                     </div>
-                    <Select value={form.content.visualization.kind} onValueChange={(v) => setVisualization("kind", v)}>
+                    <Select items={VISUALIZATION_LABEL} value={form.content.visualization.kind} onValueChange={(v) => setVisualization("kind", v)}>
                         <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            <SelectItem value="mermaid">Mermaid diagram</SelectItem>
-                            <SelectItem value="flow">Flow (advanced JSON)</SelectItem>
+                            {Object.entries(VISUALIZATION_LABEL).map(([value, label]) => (
+                                <SelectItem key={value} value={value}>{label}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     {form.content.visualization.kind === "mermaid" && (
@@ -478,13 +512,14 @@ export default function AdminEditorPage() {
                             />
                         </div>
                         <Select
+                            items={RELATION_TYPE_ITEMS}
                             value={rel.relationType}
                             onValueChange={(v) => set("relations", form.relations.map((r, idx) => (idx === i ? { ...r, relationType: v } : r)))}
                         >
                             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                                {RELATION_TYPES.map((t) => (
-                                    <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
+                                {Object.entries(RELATION_TYPE_ITEMS).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>{label}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -540,11 +575,11 @@ export default function AdminEditorPage() {
                         <h2 className="text-sm font-semibold">Interview details</h2>
                         <div className="space-y-1.5">
                             <Label>Role</Label>
-                            <Select value={form.role} onValueChange={(v) => set("role", v)}>
-                                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                            <Select items={INTERVIEW_ROLE_ITEMS} value={form.role} onValueChange={(v) => set("role", v)}>
+                                <SelectTrigger className="w-48"><SelectValue className="capitalize" /></SelectTrigger>
                                 <SelectContent>
-                                    {INTERVIEW_ROLES.map((r) => (
-                                        <SelectItem key={r} value={r} className="capitalize">{r.replace("-", " ")}</SelectItem>
+                                    {Object.entries(INTERVIEW_ROLE_ITEMS).map(([value, label]) => (
+                                        <SelectItem key={value} value={value} className="capitalize">{label}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -584,14 +619,7 @@ export default function AdminEditorPage() {
                                 <Input value={form.demoUrl} onChange={(e) => set("demoUrl", e.target.value)} />
                             </div>
                         </div>
-                        {[
-                            ["architectureNotes", "Architecture"],
-                            ["databaseNotes", "Database"],
-                            ["apiNotes", "API"],
-                            ["deploymentNotes", "Deployment"],
-                        ].map(([key, label]) => (
-                            <MarkdownField key={key} label={label} value={form[key]} onChange={(v) => set(key, v)} className="min-h-20" />
-                        ))}
+                        <SectionsEditor sections={form.sections} onChange={(v) => set("sections", v)} />
 
                         <RepeatableRows
                             label="Challenges"

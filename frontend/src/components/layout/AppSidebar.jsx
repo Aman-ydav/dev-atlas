@@ -31,7 +31,7 @@ const PRIMARY_NAV = [
     { to: "/dashboard", label: "Home", icon: HomeIcon, end: true },
     { to: "/explore", label: "Explore", icon: CompassIcon },
     { to: "/practice", label: "Practice", icon: DumbbellIcon },
-    { to: "/projects", label: "Projects", icon: FolderKanbanIcon },
+    { to: "/case-studies", label: "Case Studies", icon: FolderKanbanIcon },
     { to: "/interview", label: "Interview", icon: MessageSquareTextIcon },
     { to: "/resources", label: "Resources", icon: LibraryIcon },
 ];

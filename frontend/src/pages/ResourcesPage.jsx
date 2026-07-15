@@ -1,32 +1,9 @@
-import {
-    BookOpenIcon,
-    FileTextIcon,
-    NewspaperIcon,
-    BookIcon,
-    VideoIcon,
-    FileIcon,
-    GraduationCapIcon,
-    ClipboardListIcon,
-    ExternalLinkIcon,
-} from "lucide-react";
+import { BookOpenIcon, FileIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { GithubIcon } from "@/components/shared/GithubIcon";
-import { Card, CardContent } from "@/components/ui/card";
+import { ResourceCard, RESOURCE_KIND_META } from "@/components/shared/ResourceCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useGetResourcesQuery } from "@/store/api/resourceApi";
-
-const KIND_META = {
-    official_docs: { label: "Official Docs", icon: BookOpenIcon },
-    article: { label: "Articles", icon: FileTextIcon },
-    blog: { label: "Blogs", icon: NewspaperIcon },
-    github: { label: "GitHub", icon: GithubIcon },
-    book: { label: "Books", icon: BookIcon },
-    video: { label: "Videos", icon: VideoIcon },
-    pdf: { label: "PDFs", icon: FileIcon },
-    research_paper: { label: "Research Papers", icon: GraduationCapIcon },
-    cheatsheet: { label: "Cheat Sheets", icon: ClipboardListIcon },
-};
 
 export default function ResourcesPage() {
     const { data: resources, isLoading } = useGetResourcesQuery(undefined);
@@ -62,7 +39,7 @@ export default function ResourcesPage() {
 
             <div className="space-y-8">
                 {Object.entries(grouped).map(([kind, items]) => {
-                    const meta = KIND_META[kind] || { label: kind, icon: FileIcon };
+                    const meta = RESOURCE_KIND_META[kind] || { label: kind, icon: FileIcon };
                     const Icon = meta.icon;
                     return (
                         <section key={kind}>
@@ -72,27 +49,7 @@ export default function ResourcesPage() {
                             </h2>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 {items.map((resource) => (
-                                    <a
-                                        key={resource._id}
-                                        href={resource.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="group/card block"
-                                    >
-                                        <Card className="gap-1 py-3 transition-colors group-hover/card:border-foreground/20">
-                                            <CardContent className="flex items-start justify-between gap-2 px-4">
-                                                <div>
-                                                    <p className="text-sm font-medium">{resource.title}</p>
-                                                    {resource.description && (
-                                                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
-                                                            {resource.description}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                                            </CardContent>
-                                        </Card>
-                                    </a>
+                                    <ResourceCard key={resource._id} resource={resource} />
                                 ))}
                             </div>
                         </section>

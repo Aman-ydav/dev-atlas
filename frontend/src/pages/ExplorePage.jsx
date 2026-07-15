@@ -1,12 +1,15 @@
 import { Link } from "react-router-dom";
+import { RouteIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { resolveIcon } from "@/lib/iconMap";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
+import { useGetLearningPathsQuery } from "@/store/api/learningPathApi";
 
 export default function ExplorePage() {
     const { data: categories, isLoading } = useGetCategoryTreeQuery();
+    const { data: paths } = useGetLearningPathsQuery();
 
     return (
         <div>
@@ -14,6 +17,16 @@ export default function ExplorePage() {
                 title="Explore"
                 description="Browse everything you know, organized by category — not by folder."
             />
+
+            {paths?.length > 0 && (
+                <Link
+                    to="/paths"
+                    className="mb-6 flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                >
+                    <RouteIcon className="size-3.5" />
+                    {paths.length} curated learning {paths.length === 1 ? "path" : "paths"} available — step-by-step, never gated
+                </Link>
+            )}
 
             {isLoading ? (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">

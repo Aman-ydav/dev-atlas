@@ -1,10 +1,20 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { flattenCategories } from "@/lib/flattenCategories";
+import { DIFFICULTY_LABEL } from "@/components/knowledge/DifficultyBadge";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
 
-const DIFFICULTIES = ["beginner", "intermediate", "advanced"];
+// Same Base-UI-needs-`items`-for-a-label quirk as RevisionControls' status
+// select — without `items` the trigger showed the raw value ("all",
+// "-createdAt") instead of the SelectItem label.
+const DIFFICULTY_ITEMS = { all: "All difficulties", ...DIFFICULTY_LABEL };
+const SORT_ITEMS = {
+    "-createdAt": "Newest",
+    title: "Title A-Z",
+    "-viewCount": "Most viewed",
+    difficulty: "Difficulty",
+};
 
 export function KnowledgeFilterBar({ filters, onChange, showCategory = true, showCompany = false }) {
     const { data: categoryTree } = useGetCategoryTreeQuery(undefined, { skip: !showCategory });
@@ -40,16 +50,13 @@ export function KnowledgeFilterBar({ filters, onChange, showCategory = true, sho
                 </Select>
             )}
 
-            <Select value={filters.difficulty || "all"} onValueChange={(v) => set("difficulty", v)}>
+            <Select items={DIFFICULTY_ITEMS} value={filters.difficulty || "all"} onValueChange={(v) => set("difficulty", v)}>
                 <SelectTrigger size="sm" className="w-36">
                     <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">All difficulties</SelectItem>
-                    {DIFFICULTIES.map((d) => (
-                        <SelectItem key={d} value={d} className="capitalize">
-                            {d}
-                        </SelectItem>
+                    {Object.entries(DIFFICULTY_ITEMS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
                     ))}
                 </SelectContent>
             </Select>
@@ -72,15 +79,14 @@ export function KnowledgeFilterBar({ filters, onChange, showCategory = true, sho
                 </Select>
             )}
 
-            <Select value={filters.sort || "-createdAt"} onValueChange={(v) => set("sort", v)}>
+            <Select items={SORT_ITEMS} value={filters.sort || "-createdAt"} onValueChange={(v) => set("sort", v)}>
                 <SelectTrigger size="sm" className="w-40">
                     <SelectValue placeholder="Sort" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="-createdAt">Newest</SelectItem>
-                    <SelectItem value="title">Title A-Z</SelectItem>
-                    <SelectItem value="-viewCount">Most viewed</SelectItem>
-                    <SelectItem value="difficulty">Difficulty</SelectItem>
+                    {Object.entries(SORT_ITEMS).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
                 </SelectContent>
             </Select>
         </div>

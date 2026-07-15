@@ -67,6 +67,8 @@ export const RESOURCE_KINDS = [
     "cheatsheet",
 ];
 
+export const RESOURCE_SOURCE_TYPES = ["link", "upload"];
+
 export const ACTIVITY_ACTIONS = [
     "viewed",
     "created",
@@ -77,7 +79,11 @@ export const ACTIVITY_ACTIONS = [
     "commented_note",
 ];
 
-export const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink"];
+export const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"];
+
+export const COMMENT_MAX_DEPTH = 4; // 5 visual nesting levels: 0..4
+export const COMMENT_SORTS = ["top", "newest"];
+export const COMMENT_DELETED_BY = ["author", "admin"];
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;

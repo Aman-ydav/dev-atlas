@@ -75,7 +75,7 @@ const getKnowledgeBySlug = asyncHandler(async (req, res) => {
         isDeleted: false,
     })
         .populate("category", "name slug")
-        .populate("resources")
+        .populate({ path: "resources", populate: { path: "attachment" } })
         .populate("attachments")
         .populate("companies", "name slug logoUrl")
         .populate("author", "name avatarUrl")
@@ -134,9 +134,8 @@ const TYPE_FIELD_WHITELIST = {
     dsa: ["pattern", "complexity", "constraints", "externalUrl", "approach", "hints"],
     interview: ["role", "realProjectExampleRef"],
     project: [
-        "tagline", "techStack", "repoUrl", "demoUrl", "architectureNotes",
-        "databaseNotes", "apiNotes", "deploymentNotes", "challenges", "decisions",
-        "lessonsLearned", "improvements", "gallery",
+        "tagline", "techStack", "repoUrl", "demoUrl", "sections",
+        "challenges", "decisions", "lessonsLearned", "improvements", "gallery",
     ],
     concept: [],
 };

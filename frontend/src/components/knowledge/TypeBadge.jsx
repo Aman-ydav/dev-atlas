@@ -5,7 +5,7 @@ export const TYPE_META = {
     concept: { label: "Concept", icon: BookOpenIcon },
     dsa: { label: "DSA", icon: BinaryIcon },
     interview: { label: "Interview", icon: MessageSquareTextIcon },
-    project: { label: "Project", icon: FolderKanbanIcon },
+    project: { label: "Case Study", icon: FolderKanbanIcon },
 };
 
 export function TypeBadge({ type, className }) {

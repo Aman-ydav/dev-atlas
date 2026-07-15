@@ -39,6 +39,26 @@
   --code-editor-variable: #9cdcfe;
   --code-editor-deletion: #f48771;
 
+  /* Highlighter marks (HighlightableContent) — a bg/fg pair per color, third
+     deliberate color exception alongside --destructive and --code-editor-*
+     (see docs/11-design-system.md §2.9). Each pair is tuned so mark text
+     uses its own --highlight-*-fg instead of inheriting --foreground, which
+     is what made highlights unreadable in dark mode before this (a
+     near-white --foreground sitting on a light pastel bg). Verified >=7.5:1
+     text-vs-background contrast in both modes. */
+  --highlight-yellow-bg: oklch(0.93 0.14 95);
+  --highlight-yellow-fg: oklch(0.32 0.09 95);
+  --highlight-green-bg: oklch(0.92 0.11 155);
+  --highlight-green-fg: oklch(0.3 0.09 155);
+  --highlight-blue-bg: oklch(0.91 0.06 250);
+  --highlight-blue-fg: oklch(0.32 0.1 250);
+  --highlight-pink-bg: oklch(0.91 0.07 350);
+  --highlight-pink-fg: oklch(0.35 0.13 350);
+  --highlight-purple-bg: oklch(0.91 0.07 300);
+  --highlight-purple-fg: oklch(0.34 0.12 300);
+  --highlight-orange-bg: oklch(0.9 0.13 55);
+  --highlight-orange-fg: oklch(0.33 0.11 55);
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -219,6 +239,19 @@ body {
   --code-bg: #1f2028;
   --shadow:
     rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+
+  --highlight-yellow-bg: oklch(0.4 0.1 95);
+  --highlight-yellow-fg: oklch(0.94 0.09 95);
+  --highlight-green-bg: oklch(0.38 0.09 155);
+  --highlight-green-fg: oklch(0.92 0.09 155);
+  --highlight-blue-bg: oklch(0.38 0.08 250);
+  --highlight-blue-fg: oklch(0.92 0.06 250);
+  --highlight-pink-bg: oklch(0.38 0.1 350);
+  --highlight-pink-fg: oklch(0.92 0.07 350);
+  --highlight-purple-bg: oklch(0.38 0.1 300);
+  --highlight-purple-fg: oklch(0.92 0.07 300);
+  --highlight-orange-bg: oklch(0.38 0.11 55);
+  --highlight-orange-fg: oklch(0.93 0.1 55);
 }
 
 @layer base {
@@ -296,4 +329,42 @@ body {
 }
 .hljs-strong {
   font-weight: 700;
+}
+
+/* Highlighter marks — user-authored text highlights inside knowledge content
+   (HighlightableContent.jsx). Third deliberate color exception, see the
+   --highlight-* token comment above and docs/11-design-system.md §2.9.
+   Each color is a single class (not an inline style) so the bg/fg pair
+   swaps automatically with .dark via the tokens, instead of the mark
+   carrying a fixed hex color that goes unreadable when the page theme
+   flips underneath it. */
+.highlight-mark {
+  border-radius: 0.2em;
+  padding: 0.05em 0.15em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.highlight-yellow {
+  background-color: var(--highlight-yellow-bg);
+  color: var(--highlight-yellow-fg);
+}
+.highlight-green {
+  background-color: var(--highlight-green-bg);
+  color: var(--highlight-green-fg);
+}
+.highlight-blue {
+  background-color: var(--highlight-blue-bg);
+  color: var(--highlight-blue-fg);
+}
+.highlight-pink {
+  background-color: var(--highlight-pink-bg);
+  color: var(--highlight-pink-fg);
+}
+.highlight-purple {
+  background-color: var(--highlight-purple-bg);
+  color: var(--highlight-purple-fg);
+}
+.highlight-orange {
+  background-color: var(--highlight-orange-bg);
+  color: var(--highlight-orange-fg);
 }

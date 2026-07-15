@@ -13,7 +13,7 @@ const getResources = asyncHandler(async (req, res) => {
         filter._id = { $in: knowledge.resources };
     }
 
-    const resources = await Resource.find(filter).sort({ createdAt: -1 });
+    const resources = await Resource.find(filter).sort({ createdAt: -1 }).populate("attachment");
 
     return res
         .status(200)

@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { ClockIcon, ExternalLinkIcon, PencilIcon, UploadCloudIcon } from "lucide-react";
+import { ClockIcon, PencilIcon, UploadCloudIcon } from "lucide-react";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { TypeBadge } from "@/components/knowledge/TypeBadge";
 import { DifficultyBadge } from "@/components/knowledge/DifficultyBadge";
 import { RevisionControls } from "@/components/knowledge/RevisionControls";
+import { PathStrip } from "@/components/knowledge/PathStrip";
 import { HighlightableContent } from "@/components/knowledge/HighlightableContent";
 import { VisualizationBlock } from "@/components/knowledge/VisualizationBlock";
 import { CodeExamplesList } from "@/components/knowledge/CodeExamplesList";
 import { InterviewQuestionsList } from "@/components/knowledge/InterviewQuestionsList";
 import { RelatedTopics } from "@/components/knowledge/RelatedTopics";
 import { PersonalNotes } from "@/components/knowledge/PersonalNotes";
+import { CommentSection } from "@/components/knowledge/CommentSection";
 import { MarkdownRenderer } from "@/components/knowledge/MarkdownRenderer";
+import { ResourceCard } from "@/components/shared/ResourceCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -82,6 +85,8 @@ export default function KnowledgeDetailPage() {
                 </div>
             </header>
 
+            <PathStrip knowledgeId={knowledge._id} />
+
             <RevisionControls knowledgeId={knowledge._id} />
 
             {content.tldr && (
@@ -148,16 +153,7 @@ export default function KnowledgeDetailPage() {
                 <Section title="Resources">
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {knowledge.resources.map((resource) => (
-                            <a
-                                key={resource._id}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-foreground/30"
-                            >
-                                {resource.title}
-                                <ExternalLinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                            </a>
+                            <ResourceCard key={resource._id} resource={resource} />
                         ))}
                     </div>
                 </Section>
@@ -169,6 +165,10 @@ export default function KnowledgeDetailPage() {
 
             <div className="border-t border-border pt-6">
                 <PersonalNotes knowledgeId={knowledge._id} />
+            </div>
+
+            <div className="border-t border-border pt-6">
+                <CommentSection knowledgeId={knowledge._id} />
             </div>
         </article>
     );
@@ -200,13 +200,6 @@ function DsaSection({ knowledge }) {
 }
 
 function ProjectSection({ knowledge }) {
-    const blocks = [
-        ["Architecture", knowledge.architectureNotes],
-        ["Database", knowledge.databaseNotes],
-        ["API", knowledge.apiNotes],
-        ["Deployment", knowledge.deploymentNotes],
-    ].filter(([, value]) => value);
-
     return (
         <>
             <Section title="Overview">
@@ -232,9 +225,11 @@ function ProjectSection({ knowledge }) {
                 </div>
             </Section>
 
-            {blocks.map(([title, value]) => (
-                <Section key={title} title={title}>
-                    <MarkdownRenderer content={value} />
+            {knowledge.sections?.map((section, i) => (
+                <Section key={i} title={section.title}>
+                    <MarkdownRenderer content={section.body} />
+                    <VisualizationBlock visualization={section.visualization} />
+                    <CodeExamplesList examples={section.codeExamples} />
                 </Section>
             ))}
 

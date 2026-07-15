@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-const DIFFICULTY_LABEL = {
+export const DIFFICULTY_LABEL = {
     beginner: "Beginner",
     intermediate: "Intermediate",
     advanced: "Advanced",

@@ -5,8 +5,10 @@ const TABS = [
     { to: "/admin", label: "Overview", end: true },
     { to: "/admin/knowledge/new", label: "New Card" },
     { to: "/admin/categories", label: "Categories" },
+    { to: "/admin/learning-paths", label: "Learning Paths" },
     { to: "/admin/companies", label: "Companies" },
     { to: "/admin/resources", label: "Resources" },
+    { to: "/admin/comments", label: "Flagged Comments" },
     { to: "/admin/dsa-import", label: "DSA CSV Import" },
     { to: "/admin/users", label: "Users" },
 ];
