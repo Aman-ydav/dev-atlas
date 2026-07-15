@@ -2,14 +2,12 @@
 // an already-logged-in user to admin by email. Run once after first deploy:
 //   npm run seed
 //   ADMIN_EMAIL=you@example.com npm run seed   (also promotes that user to admin)
-import dotenv from "dotenv";
+import "dotenv/config";
 import mongoose from "mongoose";
 import connectDB from "../db/index.js";
 import { Category } from "../models/category.model.js";
 import { User } from "../models/user.model.js";
 import { slugify } from "../utils/slugify.js";
-
-dotenv.config();
 
 const TOP_LEVEL_CATEGORIES = [
     { name: "Frontend", icon: "layout-panel-left" },
