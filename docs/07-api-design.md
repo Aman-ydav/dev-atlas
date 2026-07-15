@@ -40,7 +40,7 @@ No endpoint returns a bare array or bare object — always wrapped. Every contro
 | GET | `/google/callback` | public | Passport callback. On success: upsert `User` (match by `providers.providerId`, else by `email` to link a second provider; auto-promote to `super_admin` if the email matches `SUPER_ADMIN_EMAIL`), issue access+refresh JWT cookies, `302` redirect to `FRONTEND_URL/auth/callback` |
 | GET | `/github` | public | Redirects to GitHub OAuth consent screen |
 | GET | `/github/callback` | public | Same upsert/issue/redirect/auto-promote flow as Google |
-| POST | `/refresh` | cookie: refreshToken | Verifies refresh token against `user.refreshTokenHash`, rotates both tokens, sets new cookies. `401` + clears cookies if invalid/reused (reuse = revoked token replay, a security event → also nulls `refreshTokenHash`, forcing full re-login) |
+| POST | `/refresh` | cookie: refreshToken | Verifies refresh token against `user.refreshTokenHash` and, on match, sets a new accessToken cookie only — the refresh token itself is not rotated (`15-security-design.md` §4). `401` + clears cookies on a hash mismatch (stale/forged token, a security event → nulls `refreshTokenHash`, forcing full re-login) |
 | POST | `/logout` | required | Clears cookies, nulls `refreshTokenHash` |
 | GET | `/me` | required | Returns the current `User` doc (used by frontend on app boot to hydrate Redux auth state) |
 

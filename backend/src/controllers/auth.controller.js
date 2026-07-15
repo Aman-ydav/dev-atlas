@@ -3,7 +3,13 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { User } from "../models/user.model.js";
-import { issueTokens, hashToken, ACCESS_TOKEN_MAX_AGE_MS, REFRESH_TOKEN_MAX_AGE_MS } from "../utils/tokens.js";
+import {
+    issueTokens,
+    reissueAccessToken,
+    hashToken,
+    ACCESS_TOKEN_MAX_AGE_MS,
+    REFRESH_TOKEN_MAX_AGE_MS,
+} from "../utils/tokens.js";
 import { COOKIE_OPTIONS, FRONTEND_URL } from "../constants.js";
 
 const REFRESH_COOKIE_OPTIONS = {
@@ -57,10 +63,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Refresh token has been revoked, please log in again");
     }
 
-    const { accessToken, refreshToken } = await issueTokens(user);
-
+    // Mint a new access token only — the refresh token itself is not rotated
+    // here, so refreshTokenHash doesn't change and there's nothing for a
+    // second concurrent refresh (e.g. another tab hitting the same expiry)
+    // to race. The refresh token stays valid for its own fixed lifetime from
+    // login, only replaced by an actual re-login or cleared by logout.
+    const accessToken = reissueAccessToken(user);
     res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
-    res.cookie("refreshToken", refreshToken, REFRESH_COOKIE_OPTIONS);
 
     return res
         .status(200)

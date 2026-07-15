@@ -33,8 +33,10 @@ export const generateRefreshToken = (user) =>
 export const hashToken = (token) =>
     crypto.createHash("sha256").update(token).digest("hex");
 
-// Issues a fresh access+refresh pair, persists the refresh token's hash on the
-// user doc (for rotation/revocation), and returns both raw tokens to set as cookies.
+// Issues a fresh access+refresh pair and persists the refresh token's hash on
+// the user doc. Called at login (oauthCallback) — the refresh token minted
+// here is the one that stays valid, unrotated, for the rest of its own
+// lifetime (see reissueAccessToken below for why refreshing doesn't call this).
 export const issueTokens = async (user) => {
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -44,3 +46,10 @@ export const issueTokens = async (user) => {
 
     return { accessToken, refreshToken };
 };
+
+// Mints a new access token for an already-verified refresh token, without
+// rotating the refresh token itself — refreshTokenHash is left untouched, so
+// there's no write and nothing for a second concurrent refresh call (e.g. a
+// second browser tab hitting the same expiry) to race. The refresh token
+// stays valid for its own fixed lifetime from login, not sliding on every use.
+export const reissueAccessToken = (user) => generateAccessToken(user);

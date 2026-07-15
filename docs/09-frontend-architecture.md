@@ -243,7 +243,7 @@ Headline rule: **tags are per-item, not per-collection.** `knowledgeApi.js`'s `g
 
 ### 3.6 `baseQuery` — silent reauth on 401
 
-`apiSlice.js` wraps a plain `fetchBaseQuery({ baseUrl: "/api/v1", credentials: "include" })` in a `baseQueryWithReauth` function: on any 401, it calls `POST /auth/refresh` (already correct on the backend — rotation-on-use, single retry, no loop, per `15-security-design.md` §4) and retries the original request exactly once before giving up. A mid-session access-token expiry (15 min TTL) now resolves silently instead of discarding a still-valid refresh token and dropping the user to `/login`.
+`apiSlice.js` wraps a plain `fetchBaseQuery({ baseUrl: "/api/v1", credentials: "include" })` in a `baseQueryWithReauth` function: on any 401, it calls `POST /auth/refresh` (single retry, no loop) and retries the original request exactly once before giving up. A mid-session access-token expiry (15 min TTL) now resolves silently instead of discarding a still-valid refresh token and dropping the user to `/login`. The backend refresh endpoint verifies-and-reissues an access token only — it does not rotate the refresh token on every use (`15-security-design.md` §4) — so there's nothing for concurrent refresh calls to race on the server; see below for what the dedup here is actually for now.
 
 ```js
 // store/api/apiSlice.js — shipped shape
@@ -256,9 +256,10 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
   const isRefreshCall = typeof args === "object" && args.url === "/auth/refresh";
   if (result.error?.status === 401 && !isRefreshCall) {
     // Several queries can 401 at once when the token expires — share one
-    // in-flight refresh instead of racing concurrent calls against the
-    // backend's rotate-on-use guard (a second concurrent refresh would find
-    // the first one's new refresh token already invalidated the old one).
+    // in-flight refresh instead of firing one /auth/refresh call per query.
+    // Not a correctness fix (the backend doesn't rotate on refresh, so a
+    // second concurrent call would just succeed redundantly, not fail) —
+    // this is purely to avoid the wasted duplicate round-trips.
     refreshPromise ??= rawBaseQuery({ url: "/auth/refresh", method: "POST" }, api, extraOptions).finally(() => {
       refreshPromise = null;
     });
@@ -274,7 +275,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 };
 ```
 
-The in-flight dedup (`refreshPromise`) matters in practice, not just in theory: several queries commonly fire close together on a page mount, and without it they'd each independently call `/auth/refresh`, racing against the backend's token-rotation guard — only the first would succeed, the rest would see their refresh token already superseded and fail as "revoked." This is the only change to `apiSlice.js` itself; every injected endpoint file is unaffected since they all go through `builder.query`/`builder.mutation` against the same `baseQuery` reference regardless of what's inside it.
+The in-flight dedup (`refreshPromise`) is an efficiency measure, not what makes concurrent refreshes safe — several queries commonly fire close together on a page mount, and without it they'd each independently call `/auth/refresh`. Since the backend doesn't rotate the refresh token on a refresh (`15-security-design.md` §4), every one of those calls would still succeed on its own; the dedup just collapses them into one network round-trip instead of several redundant ones. This is the only change to `apiSlice.js` itself; every injected endpoint file is unaffected since they all go through `builder.query`/`builder.mutation` against the same `baseQuery` reference regardless of what's inside it.
 
 ---
 

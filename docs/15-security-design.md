@@ -8,7 +8,7 @@ DevAtlas is a personal-first knowledge tool for a small-to-mid user base (`03-sr
 
 | Asset | Primary risk | Primary defense |
 |---|---|---|
-| User identity / session | Cookie theft (XSS), CSRF, refresh-token replay | `httpOnly` cookies, sanitized rendering, rotation + reuse detection (§4) |
+| User identity / session | Cookie theft (XSS), CSRF, refresh-token replay | `httpOnly` cookies, sanitized rendering, hash-verified refresh + revocation on mismatch (§4) |
 | Canonical `Knowledge` content | Unauthorized/accidental admin mutation, stored XSS served to every reader | Route + field-level RBAC (§3), render-time sanitization (§9) |
 | Personal data (`userprogress`, `annotations`) | Cross-user read/write, i.e. seeing someone else's private notes | Always scoped by JWT-derived `user` id, **no admin bypass** (§3) |
 | Availability | Scraping, credential-stuffing-shaped abuse against OAuth callback/refresh | Rate limiting (§7) |
@@ -117,7 +117,7 @@ Two independent mechanisms, layered:
 
 The refresh token deliberately carries **no `role` claim** — every refresh reloads the `User` doc and mints a brand-new access token from current DB state, so `role` never goes stale for longer than one access-token TTL (≤15 minutes) even for a session that never explicitly refreshes (the old token just expires and re-auth is required).
 
-**Rotation-on-use + reuse detection** (`auth.controller.js` → `refreshAccessToken`, `backend/src/utils/tokens.js`):
+**Verify-and-reissue-access-only, not rotation-on-use** (`auth.controller.js` → `refreshAccessToken`, `backend/src/utils/tokens.js`):
 
 ```mermaid
 sequenceDiagram
@@ -129,18 +129,21 @@ sequenceDiagram
     API->>API: verify T1 signature/expiry
     API->>DB: load user, compare sha256(T1) == refreshTokenHash?
     alt hash matches (expected path)
-        API->>API: issueTokens(user) — sign T2(access) + T3(refresh)
-        API->>DB: refreshTokenHash = sha256(T3)
-        API-->>B: Set-Cookie accessToken=T2, refreshToken=T3
-    else hash mismatch (T1 already rotated away, or forged)
+        API->>API: reissueAccessToken(user) — sign T2(access) only
+        API-->>B: Set-Cookie accessToken=T2  (refreshToken cookie untouched)
+    else hash mismatch (stale session, or forged)
         API->>DB: refreshTokenHash = null  (kill the session)
         API-->>B: 401 — "revoked, please log in again"
     end
 ```
 
-A mismatch means either a forged token, or a **stolen, already-used** refresh token being replayed — the legitimate client already rotated past it. Either way the only safe response is to null `refreshTokenHash` and force a full re-login, which also logs out the legitimate holder — an intentional trade-off (a false-positive forces one extra OAuth round-trip; a false-negative would let a stolen token keep working indefinitely).
+`POST /auth/refresh` does **not** rotate the refresh token — `refreshTokenHash` is written exactly twice in the refresh token's life: once at `issueTokens` (login) and once at logout (cleared). A refresh call only ever reads it to verify, then mints a fresh access token; there is no write on the success path at all. `issueTokens` (which does write `refreshTokenHash`, and does rotate both tokens) is called only from `oauthCallback` — an actual new login.
 
-> **Partially mitigated — concurrent-refresh race.** `03-srs.md` NFR-REL-05 requires that racing refresh calls never spuriously log a user out. The common case is now fixed client-side: `09-frontend-architecture.md` §3.6's `apiSlice.js` wrapper shares a single in-flight `/auth/refresh` call (a module-level `refreshPromise`) across every query that 401s around the same moment, so the several RTK Query calls a page mount typically fires no longer each independently race the backend's rotate-on-use guard — only one refresh actually happens per real expiry, within one tab. **Still open:** that `refreshPromise` is a JS module-level variable, scoped to one tab's own execution context — it does nothing for two genuinely separate *tabs* both deciding to refresh within the same request window, which can still both read the same (still-matching) `refreshTokenHash`, both pass the check, and race on the Mongo write, silently invalidating whichever tab's cookie lost. That tab's *next* refresh then looks exactly like reuse and revokes the whole session. The backend-side fix for that specific case is unchanged from before: keep the immediately-previous hash alongside the current one (`previousRefreshTokenHash` + a short, e.g. 30s, grace expiry) and accept either during that window before falling through to reuse-revocation. Scoped as a small, additive follow-up to `tokens.js`/`User`, not a redesign.
+This was a deliberate simplification over an earlier rotate-on-every-refresh design, which surfaced a real bug in practice: two requests racing the same access-token expiry (concurrent queries from one tab, or two tabs open at once) could both pass the hash check, both rotate, and the loser's freshly-issued cookie would immediately mismatch on its very next use — surfacing as "Refresh token has been revoked, please log in again" every time it happened, sometimes within the same hour, long before the token's real ~10-day lifetime. Removing rotation-on-refresh removes the race entirely: there's nothing to lose a race over when a refresh doesn't write anything.
+
+**What a hash mismatch now actually means.** With rotation gone, a mismatch is no longer "a login happened to lose a race" — the only two ways to reach one are: (a) a stale browser tab presenting a refresh token from *before* the user's most recent login (each `oauthCallback` does rotate, correctly invalidating any earlier session's token), or (b) a forged/tampered token. Both are genuinely revocation-worthy, so nulling `refreshTokenHash` and forcing re-login on mismatch is unchanged and still correct — it just fires for real reasons now instead of for a benign race.
+
+**The trade-off, stated plainly.** A stolen refresh token is now valid for its full remaining lifetime (up to `REFRESH_TOKEN_EXPIRY`, 10 days) rather than being invalidated the moment the legitimate client next refreshes — rotation-with-reuse-detection is the stronger posture on paper. Given this is a single-user-per-session app with no observed abuse case driving that requirement, and the flat scheme just closed a bug users were hitting in normal, honest use, this is judged the right trade for now. If reuse detection is ever reinstated, do it as rotation *with* a grace window (keep the immediately-previous hash valid for a short window, e.g. 30s, before treating it as reuse) rather than reverting to bare rotation-on-every-use — bare rotation is what caused this bug.
 
 **Storage discipline (`03-srs.md` NFR-SEC-02):** both tokens live *only* in `httpOnly` cookies — never `localStorage`, never in a JSON response body (`GET /auth/me` returns the `User` doc, never the tokens). `httpOnly` means client-side JavaScript — including any XSS payload that ever slipped past §9 — categorically cannot read either token; this is the backstop behind every other control in this document.
 
