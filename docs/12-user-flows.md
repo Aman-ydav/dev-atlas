@@ -24,13 +24,14 @@ This sits next to `docs/07-api-design.md`'s note that `GET /knowledge`, `GET /kn
 | `/resources` | Resources module | required |
 | `/search` | Search | required |
 | `/card/:slug` | Knowledge Card page — shared renderer, all 4 discriminator types | required |
-| `/revision` | Revision (tabs: Due Now · Favorites · Pinned · In Progress) — reached via the persistent header Revision icon, not a top-nav item | required |
+| `/revision` | Revision — single due-now queue, no tabs — reached via the persistent header Revision icon, not a top-nav item | required |
+| `/bookmarks` | Saved (sidebar personal nav; tabs: Bookmarked · Favorites · Pinned, grouped by card type) | required |
 | `/profile` | Profile (tabs: Overview · Bookmarks · Activity) | required |
 | `/settings` | Settings | required |
 | `/admin` | Admin Dashboard | admin |
 | `/admin/knowledge/new`, `/admin/knowledge/:id/edit` | Admin Knowledge Editor | admin |
 | `/admin/import/dsa-csv` | Admin CSV Import | admin |
-| `/admin/categories`, `/admin/companies`, `/admin/users`, `/admin/activity` | Admin taxonomy / user / audit screens | admin |
+| `/admin/categories`, `/admin/companies`, `/admin/resources`, `/admin/users`, `/admin/activity` | Admin taxonomy / resource / user / audit screens | admin |
 
 ### 0.3 Reading the diagrams
 
@@ -325,40 +326,38 @@ flowchart LR
 
 1. On any card, in the personal rail, Krishna toggles **"Mark for Revision."**
 2. `PATCH /progress/:knowledgeId/revision/mark` `{ marked: true }` sets `revision.isMarkedForRevision = true`. A freshly marked card hasn't been graded yet, so `revision.nextRevisionAt` defaults to "now" — it's immediately due, not queued into the future.
-3. The card now appears in the Revision page's **Due Now** tab.
+3. The card now appears on the Revision page.
 
-### 8b — Running a revision session
+### 8b — Reviewing due cards
+
+There is no separate "session" mode — no Start Session button, no auto-advancing quiz queue, no completion screen. The Revision page is just a list of the cards that are due right now, each rendered with the same `RevisionControls` rail every card already has on its own page.
 
 4. Krishna opens the persistent **Revision** icon in the header (not a top-nav item — see `04-information-architecture.md` §2 for why) → `/revision`.
-5. The page loads with four tabs: **Due Now**, **Favorites**, **Pinned**, **In Progress**. Due Now fetches `GET /progress/revision/due` (`nextRevisionAt <= now`), ordered most-overdue-first.
-6. **Decision — Due Now is empty:**
+5. The page fetches `GET /progress/revision/due` (`nextRevisionAt <= now`), ordered most-overdue-first, and renders one card + its rating controls per due entry.
+6. **Decision — the due list is empty:**
    - Krishna has never marked anything → empty state: "Mark cards for revision as you read them," linking to Explore.
-   - Krishna has marked cards but none are currently due → a reassuring, factual state: "You're caught up — next review: <date> for <n> cards," pulled from the soonest `nextRevisionAt` across the full marked set. (Not the case here — cards are due.)
-7. Krishna clicks **"Start Session."** This does **not** open a stripped-down quiz UI — per the product's "no separate flashcard object" rule, a revision session is just reading the real `/card/:slug` page again, with a persistent rating control pinned in the personal rail.
-8. Krishna reads/skims the card as needed (the full skeleton is available, nothing is hidden to force recall-testing).
-9. Rates confidence via three buttons in the rail: **forgot / shaky / confident**.
-10. `POST /progress/:knowledgeId/revision` `{ result }`. Backend applies the interval table from `06-database-design.md` §5:
+   - Krishna has marked cards but none are currently due → "You're caught up — next review in `<relative time>`" (plus a card count when more than one shares that moment), sourced from the `nextUp` field the same endpoint returns whenever `items` is empty. (Not the case here — cards are due.)
+7. For each due card, Krishna reads/skims as needed — the full skeleton renders inline, right there on the Revision page; nothing is hidden to force recall-testing, and there's no separate "enter the card" step.
+8. Rates confidence via three buttons in the rail: **forgot / shaky / confident**. Each button previews its actual next interval before being clicked (e.g. "Forgot · 10m", "Confident · 14d"), computed from the card's current level internally, so the result is never a surprise — the underlying `level` itself is never displayed as a number or progress indicator anywhere in the UI, per `03-srs.md` FR-PROG-09's explicit, permanent ban on displaying levels/streaks/scores.
+9. `POST /progress/:knowledgeId/revision` `{ result }`. Backend applies the interval table from `06-database-design.md` §5:
 
     | Result | Level | Next interval |
     |---|---|---|
-    | `forgot` | reset to 0 | +1 day |
-    | `shaky` | `max(level-1, 0)` | +3 days |
-    | `confident` | `min(level+1, 4)` | +7/14/30/60/90 days by level |
+    | `forgot` | reset to 0 | +10 minutes (short relearning step) |
+    | `shaky` | `max(level-1, 0)` | +1/2/4/7/14 days by (post-decrement) level |
+    | `confident` | `min(level+1, 4)` | +7/14/30/60/90 days by (post-increment) level |
 
-    The rating is appended to `revision.history`.
-11. Frontend auto-advances to the next due card in the session queue (a "Skip" control is also available). Each rating is persisted the moment it's submitted, so exiting mid-session mid-queue loses nothing — there is deliberately no "unsaved session progress" confirmation dialog, because there's nothing unsaved.
-12. When the queue empties: **"All caught up"** completion state, showing a plain factual count ("Reviewed 7 cards") — not a score, streak, or badge, per `02-prd.md` NFR-8 / `03-srs.md` FR-PROG-09.
-13. Returning to the Revision landing re-fetches Due Now, now reflecting the freshly pushed-out `nextRevisionAt` values.
+    The rating is appended to `revision.history`. A toast confirms when the card will resurface (e.g. "Scheduled for review in 10 minutes").
+10. The card drops off the due list on the next refetch — each rating is persisted the moment it's submitted, so there's nothing "unsaved" to lose by navigating away mid-review.
+11. Returning to the Revision page re-fetches the due list, now reflecting the freshly pushed-out `nextRevisionAt` values. The sidebar's Revision nav item carries a live due-count badge throughout, so Krishna doesn't need to visit the page just to know whether anything's waiting.
 
 ```mermaid
 stateDiagram-v2
     [*] --> NotMarked
     NotMarked --> DueNow: PATCH revision/mark {marked:true}
-    DueNow --> InSession: click Start Session
-    InSession --> InSession: rate forgot/shaky/confident -> auto-advance
-    InSession --> SessionComplete: queue empty
-    InSession --> DueNow: exit mid-session (no data loss)
-    SessionComplete --> DueNow: return to Revision landing
+    DueNow --> DueNow: rate forgot/shaky/confident -> card drops off list, toast shows next interval
+    DueNow --> CaughtUp: due list empties
+    CaughtUp --> DueNow: nextUp time elapses, card is due again
     DueNow --> Mastered: level reaches cap, interval grows past active review horizon
 ```
 

@@ -111,7 +111,7 @@ Two independent mechanisms, layered:
 |---|---|---|
 | Payload | `{ _id, email, role }` | `{ _id }` only |
 | Secret | `ACCESS_TOKEN_SECRET` | `REFRESH_TOKEN_SECRET` (**different** secret — a leaked access-token secret alone can't forge a refresh token) |
-| Default TTL | `15m` (`ACCESS_TOKEN_EXPIRY`) | `30d` (`REFRESH_TOKEN_EXPIRY`) |
+| Default TTL | `15m` (`ACCESS_TOKEN_EXPIRY`) | `10d` (`REFRESH_TOKEN_EXPIRY`) |
 | Transport | `httpOnly` cookie only | `httpOnly` cookie only |
 | Server-side record | none (stateless) | sha256 hash on `User.refreshTokenHash` |
 
@@ -140,7 +140,7 @@ sequenceDiagram
 
 A mismatch means either a forged token, or a **stolen, already-used** refresh token being replayed — the legitimate client already rotated past it. Either way the only safe response is to null `refreshTokenHash` and force a full re-login, which also logs out the legitimate holder — an intentional trade-off (a false-positive forces one extra OAuth round-trip; a false-negative would let a stolen token keep working indefinitely).
 
-> **Known limitation — concurrent-tab refresh race.** `03-srs.md` NFR-REL-05 requires that racing refresh calls from multiple tabs never spuriously log a user out. Today, two tabs calling `/auth/refresh` within the same request window can both read the same (still-matching) `refreshTokenHash`, both pass the check, and both call `issueTokens` — the second write wins in Mongo, silently invalidating the first tab's just-issued cookie. That tab's *next* refresh will then look exactly like reuse and revoke the whole session. **Recommended fix:** keep the immediately-previous hash alongside the current one (`previousRefreshTokenHash` + a short, e.g. 30s, grace expiry) and accept either during that window before falling through to reuse-revocation. This is scoped as a small, additive follow-up to `tokens.js`/`User`, not a redesign — flagging it here because it's squarely a JWT-rotation concern, not a schema-ownership one.
+> **Partially mitigated — concurrent-refresh race.** `03-srs.md` NFR-REL-05 requires that racing refresh calls never spuriously log a user out. The common case is now fixed client-side: `09-frontend-architecture.md` §3.6's `apiSlice.js` wrapper shares a single in-flight `/auth/refresh` call (a module-level `refreshPromise`) across every query that 401s around the same moment, so the several RTK Query calls a page mount typically fires no longer each independently race the backend's rotate-on-use guard — only one refresh actually happens per real expiry, within one tab. **Still open:** that `refreshPromise` is a JS module-level variable, scoped to one tab's own execution context — it does nothing for two genuinely separate *tabs* both deciding to refresh within the same request window, which can still both read the same (still-matching) `refreshTokenHash`, both pass the check, and race on the Mongo write, silently invalidating whichever tab's cookie lost. That tab's *next* refresh then looks exactly like reuse and revokes the whole session. The backend-side fix for that specific case is unchanged from before: keep the immediately-previous hash alongside the current one (`previousRefreshTokenHash` + a short, e.g. 30s, grace expiry) and accept either during that window before falling through to reuse-revocation. Scoped as a small, additive follow-up to `tokens.js`/`User`, not a redesign.
 
 **Storage discipline (`03-srs.md` NFR-SEC-02):** both tokens live *only* in `httpOnly` cookies — never `localStorage`, never in a JSON response body (`GET /auth/me` returns the `User` doc, never the tokens). `httpOnly` means client-side JavaScript — including any XSS payload that ever slipped past §9 — categorically cannot read either token; this is the backstop behind every other control in this document.
 
@@ -179,7 +179,7 @@ Frontend (`:5173`) and backend (`:8000`) are different **ports** but the same **
 | Cookie | `httpOnly` | `Secure` | `SameSite` | `maxAge` | `Domain` |
 |---|---|---|---|---|---|
 | `accessToken` | yes | prod only | `lax` dev / `none` prod | 15 min | host-only |
-| `refreshToken` | yes | prod only | `lax` dev / `none` prod | 30 days | host-only |
+| `refreshToken` | yes | prod only | `lax` dev / `none` prod | 10 days | host-only |
 
 ---
 
@@ -369,7 +369,7 @@ Every value the backend needs lives in `backend/.env` (gitignored — confirmed 
 | `GOOGLE_CALLBACK_URL`, `GITHUB_CALLBACK_URL` | Config | Must exactly match each provider's registered redirect URI |
 | `FRONTEND_URL`, `FRONTEND_URL_PROD`, `CORS_ALLOWED_ORIGINS` | Config | See §10 |
 | `NODE_ENV`, `PORT` | Config | Standard |
-| `ACCESS_TOKEN_EXPIRY`, `REFRESH_TOKEN_EXPIRY` | Config | Defaults (`15m`/`30d`) apply if unset |
+| `ACCESS_TOKEN_EXPIRY`, `REFRESH_TOKEN_EXPIRY` | Config | Defaults (`15m`/`10d`) apply if unset |
 
 > **Gap — no `.env.example` is committed.** Only `backend/.env` (real, gitignored values) exists; there's no placeholder template, so onboarding a second contributor means reverse-engineering key names from `constants.js`/controllers. **Fix:** commit `backend/.env.example` with every key above present and empty/placeholder-valued (`ACCESS_TOKEN_SECRET=changeme`), so `.env` setup is copy-then-fill rather than guesswork.
 

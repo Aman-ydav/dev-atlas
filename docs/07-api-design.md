@@ -141,10 +141,12 @@ All routes `required` auth, always scoped to `req.user`.
 | PATCH | `/:knowledgeId` | Upsert partial state: `{ isBookmarked?, isFavorite?, isPinned?, status?, personalNotes?, personalMistakes? }` |
 | POST | `/:knowledgeId/revision` | Body `{ result: "forgot"\|"shaky"\|"confident" }` — applies the level/interval table from `06-database-design.md §5`, appends to `revision.history` |
 | PATCH | `/:knowledgeId/revision/mark` | Body `{ marked: boolean }` — toggle `revision.isMarkedForRevision` without submitting a result |
-| GET | `/revision/due` | List of my due cards (`nextRevisionAt <= now`), populated summary — powers Dashboard + Revision page |
+| GET | `/revision/due` | List of my due cards (`nextRevisionAt <= now`), populated summary — powers Dashboard + Revision page. When the due list is empty, the response also includes `nextUp: { at, count } \| null` — the soonest upcoming `nextRevisionAt` across marked cards and how many are queued, so the UI can say "next review in X" instead of a bare empty state |
 | GET | `/bookmarks` | My bookmarked cards, paginated |
 | GET | `/pinned` | My pinned cards (small, uncapped — pins are meant to be few) |
 | GET | `/favorites` | My favorited cards, paginated |
+
+All four list endpoints above populate `knowledge` with `title slug type category difficulty tags readTimeMinutes pattern tagline`, with `category` itself resolved to `{ name }` rather than left as a bare ObjectId — this is what lets the Saved hub and Revision queue render full `KnowledgeCard`s instead of a sparser subset.
 
 ## 10. Annotations — `/api/v1/annotations`
 

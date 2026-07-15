@@ -84,6 +84,16 @@ Two color values in the token set are **not** semantic and **not** covered by §
 
 These exist because `ui/chart.jsx` (a real file in `components/ui/`) generates them by default, and `recharts` sits in `package.json` as that primitive's dependency — but per the product's explicit "no vanity analytics/charts" rule (`01-product-vision.md`), nothing in DevAtlas has a reason to mount a chart. Dashboard's numbers (`totalCardsViewed`, `totalBookmarks`, `totalRevisionsDone`) render as plain `Badge`s in `DashboardPage.jsx`, not a `recharts` visualization. Treat `chart.jsx`/`--chart-*` as present-but-intentionally-unused scaffolding from the shadcn generator, not a component to reach for — if a future screen seems to want a chart, that's a product-philosophy conversation first, not a "the token already exists" green light.
 
+### 2.8 Semantic exception: code block syntax highlighting
+
+A second deliberate, permanent exception alongside §2.5's `--destructive` — real syntax color inside fenced code blocks (`--code-editor-bg`, `--code-editor-keyword`, `--code-editor-string`, etc., a VS Code Dark+ palette defined once in `index.css`'s `:root` and consumed by `.hljs-*` rules). Three things make this different from an "unintentional exception" like §2.6:
+
+- **Fixed dark, not theme-responsive.** Unlike every other token in this document, `--code-editor-*` is declared only under `:root`, never redeclared under `.dark` — a code block looks identical regardless of whether the page is in light or dark mode, the same convention GitHub/VS Code docs/most technical sites use. This is intentional, not a missed dark-mode pass.
+- **Scoped narrowly.** Only `CodeBlock.jsx` (the `pre` override `MarkdownRenderer` wires in) and the `.hljs-*` rules consume these variables. Inline `` `code` `` spans (not inside a fenced block) still use the ordinary theme-responsive `--code-bg` token from §2.2 — the exception is specifically for multi-line fenced blocks, not all code-shaped text.
+- **The reasoning:** a code block is content, not UI chrome. The no-gradient/no-glow/grayscale rule (§9) exists to keep *interface* elements from competing for attention — it was never meant to make a JS snippet as hard to scan as it would be in a plain-text editor. Real syntax color is what "reads like a code editor" means; a monochrome code block reads as broken, not restrained.
+
+Don't treat this as license to add color elsewhere "because code blocks have it" — it's exactly as narrow as §2.5's red, just for a different content type.
+
 ---
 
 ## 3. Radius Scale
@@ -166,7 +176,7 @@ Stated explicitly, as a checklist a code reviewer can actually apply:
 - [ ] No colored `box-shadow` or `filter: drop-shadow` used as a glow/halo effect. (Neutral shadows for floating layers, §6, are fine — a shadow that reads as "this panel is above the page" is not the same thing as a shadow used to make an element look like it's emitting light.)
 - [ ] No new CSS color variable introduced without a recorded product decision — "it needs to stand out" is answered with type weight or an icon, not a new hue.
 - [ ] No neon/saturated accent color used for emphasis — emphasis is `font-semibold`, a `Badge`, or an icon, never a color shift into a hue that isn't already in the neutral ramp.
-- [ ] The only permitted hue in the entire product surface is the destructive red (§2.5) — treat any other colored pixel found in review as a bug, including (especially) the two exceptions named in §2.6, which exist purely because nobody has cleaned them up yet, not because they're allowed.
+- [ ] The only permitted hues in the entire product surface are the destructive red (§2.5) and code block syntax highlighting (§2.8) — treat any other colored pixel found in review as a bug, including (especially) the two exceptions named in §2.6, which exist purely because nobody has cleaned them up yet, not because they're allowed.
 
 **Why this is enforced so specifically, not just "keep it minimal":** DevAtlas's core philosophy (`01-product-vision.md`) is explicit that this is a knowledge engine, not a gamified habit tracker or a marketing surface — no streaks, no XP, no badges-as-rewards, no vanity charts. A restrained, colorless UI is the visual expression of that same discipline: nothing on screen is designed to trigger a dopamine response or manufacture urgency. The interface's only job is to get out of the way of 2,000 words of technical explanation, a code block, and a diagram. Every gradient or glow this rule blocks is a small vote for "app," and DevAtlas is explicitly trying not to be one — it's the notebook, not the game.
 

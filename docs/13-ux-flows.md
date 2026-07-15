@@ -195,32 +195,52 @@ stateDiagram-v2
 
 ## 7. Revision
 
-Route `/revision`, reached via the persistent header Revision icon (§9), not a top-nav item (`04-information-architecture.md` §2). Four tabs: Due Now, Favorites, Pinned, In Progress.
+Route `/revision`, reached via the persistent header Revision icon (§9), not a top-nav item (`04-information-architecture.md` §2). One view — the due queue — not the four-tab layout an earlier draft of this doc specified; Favorites/Pinned moved to their own Saved hub instead (§7b), keeping "what needs reviewing right now" and "things I've saved for later" as two distinct mental models rather than tabs of one screen.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DueNow: default tab, GET /progress/revision/due
-    DueNow --> Favorites: click Favorites tab
-    DueNow --> Pinned: click Pinned tab
-    DueNow --> InProgress: click In Progress tab
-    Favorites --> DueNow: click Due Now tab
-    Pinned --> DueNow: click Due Now tab
-    InProgress --> DueNow: click Due Now tab
+    [*] --> DueNow: GET /progress/revision/due
     DueNow --> HandOff: click Start Session
     HandOff --> [*]: hands off to the in-session state machine — 12-user-flows.md §8b
 ```
 
-This document owns the Revision *landing* screen's list states across its four tabs; the in-session mechanics (rating a card, auto-advance, session completion) are a separate concern already fully state-diagrammed in `12-user-flows.md` §8, and are not redrawn here.
+This document owns the Revision *landing* screen's states; the in-session mechanics (rating a card, auto-advance, session completion) are a separate concern already fully state-diagrammed in `12-user-flows.md` §8, and are not redrawn here.
 
 | State | Treatment |
 |---|---|
-| Tab-switch loading | each tab fetches independently and lazily — only on that tab's first visit within the session. Returning to an already-fetched tab shows cached data immediately with no Loading flash; a first-time visit to a tab shows the standard cold Loading skeleton |
-| Due Now — never marked anything | "Mark cards for revision as you read them" + link to Explore |
-| Due Now — caught up | nothing currently due: "You're caught up — next review: `<date>` for `<n>` cards," pulled from the soonest `nextRevisionAt` — a plain factual statement, never a congratulatory badge or streak-style graphic (`02-prd.md` NFR-8) |
-| Favorites — empty | "You haven't favorited anything yet" |
-| Pinned — empty | "You haven't pinned anything yet — pin up to 10 cards for fast access" |
-| In Progress — empty | "Nothing in progress — cards you've opened but not marked complete land here" |
-| Error | scoped to whichever tab is active; switching tabs after an error on one tab does not carry that error into the next tab — each tab's Error state is independent |
+| Loading | cold skeleton rows |
+| Never marked anything | "Mark cards for revision as you read them" + link to Explore |
+| Caught up | nothing currently due: "You're caught up — next review in `<relative time>`" (plus a card count when more than one is queued for that same moment), sourced from the `nextUp` field `GET /progress/revision/due` returns whenever its `items` list is empty — a plain factual statement, never a congratulatory badge or streak-style graphic (`02-prd.md` NFR-8) |
+| Has due cards | one card per row, each with its own inline rating controls (see below) — not a separate "session" screen |
+| Error | standard region-scoped Retry |
+
+Each due card's rating controls (`RevisionControls`) show the *actual* next interval next to each button before it's clicked — e.g. "Forgot · 10m", "Shaky · 1d", "Confident · 14d" — computed from the card's current level internally, so the result of pressing a button is never a surprise. The underlying `level` (0–4) that drives this is never itself displayed as a number, progress bar, or "Level X" indicator anywhere in the UI — `03-srs.md` FR-PROG-09 permanently bans displaying levels/streaks/scores, and an earlier draft of this feature that added a "Level X of 5" text label was corrected specifically for that reason; only the resulting interval is shown, never the level. Submitting a rating shows a toast confirming when the card will resurface, and the sidebar's Revision nav item carries a live due-count badge.
+
+---
+
+## 7b. Saved (Bookmarks / Favorites / Pinned)
+
+Route `/bookmarks` (sidebar label "Saved"), reached from the persistent sidebar, not the top nav. Three independent toggles — Bookmark, Favorite, Pin — set from any card's own page, surfaced here as three tabs, each grouped into sections by card type (Concept / DSA / Interview / Project) rather than one flat list.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Bookmarked: default tab, GET /progress/bookmarks
+    Bookmarked --> Favorites: click Favorites tab
+    Bookmarked --> Pinned: click Pinned tab
+    Favorites --> Bookmarked: click Bookmarked tab
+    Pinned --> Bookmarked: click Bookmarked tab
+```
+
+| State | Treatment |
+|---|---|
+| Tab-switch loading | each tab fetches independently; a first-time visit to a tab within the session shows a skeleton, a returning visit shows cached data immediately |
+| Bookmarked — empty | "Nothing bookmarked yet" + pointer to use the toolbar on a card's own page |
+| Favorites — empty | "Nothing favorited yet" + same pointer |
+| Pinned — empty | "Nothing pinned yet" + same pointer |
+| Has items | grouped into labeled sections by type, each section only rendered if it has at least one item; every card gets a small remove (×) action that un-toggles it without navigating away |
+| Error | scoped to whichever tab is active, independent per tab |
+
+The three toggles are intentionally not explained by icon alone — a small info affordance next to the tabs clarifies the distinction (bookmark = quick save, favorite = the ones worth pointing someone else to, pin = keep it on the Dashboard), since three separate "save" mechanics are not self-evident on first use.
 
 ---
 
@@ -281,7 +301,7 @@ stateDiagram-v2
 | Breakpoint | State | Visible chrome | Persistence |
 |---|---|---|---|
 | ≥768px (desktop/tablet) | Expanded | full 16rem rail — icon + label per nav item, avatar + name in the footer | `sidebar_state` cookie, 7-day max-age |
-| ≥768px | CollapsedIcon | 3rem icon-only rail, tooltips reveal labels on hover; content area gains the reclaimed width | same cookie |
+| ≥768px | CollapsedIcon | 3.5rem icon-only rail, tooltips reveal labels on hover; content area gains the reclaimed width | same cookie |
 | <768px (mobile) | SheetClosed | no persistent rail — a slim top bar (hamburger trigger, page title, Search icon, Revision icon) is the only chrome | not persisted, always starts closed on a fresh mobile load |
 | <768px | SheetOpen | ~18rem off-canvas drawer over a scrim, identical nav content to desktop Expanded | ephemeral, closes on navigation |
 

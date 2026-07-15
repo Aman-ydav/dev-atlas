@@ -55,8 +55,12 @@ flowchart TD
     SrResults --> Card
 
     Shell --> RevIcon["Revision icon (header, persistent)"]
-    RevIcon --> RevView["/revision\nfilters: Due Now · Favorites · Pinned · In Progress"]
+    RevIcon --> RevView["/revision\nsingle due-now queue, no tabs\n(Favorites/Pinned live under Saved, below)"]
     RevView --> Card
+
+    Shell --> SavedNav["Saved (sidebar, personal nav)"]
+    SavedNav --> SavedView["/bookmarks\ntabs: Bookmarked · Favorites · Pinned\ngrouped into sections by card type"]
+    SavedView --> Card
 
     Shell --> Avatar["Avatar menu"]
     Avatar --> Profile["/profile"]
@@ -69,6 +73,7 @@ flowchart TD
     AdminEntry --> AdCSV["DSA CSV Bulk Import"]
     AdminEntry --> AdCat["Category Taxonomy CRUD"]
     AdminEntry --> AdCo["Company Taxonomy CRUD"]
+    AdminEntry --> AdRes["Resource Library CRUD\n(title/url/kind/description)"]
     AdminEntry --> AdUsers["User & Role Management"]
     AdminEntry --> AdActivity["Activity / Audit Log"]
 ```

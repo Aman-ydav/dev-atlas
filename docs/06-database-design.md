@@ -276,15 +276,17 @@ Each case-study block (Architecture, Database, Auth, ...) is prose that cross-li
 // UNIQUE COMPOUND INDEX: { user: 1, knowledge: 1 }
 ```
 
-**Revision level → interval mapping** (simple leveled re-queue, deliberately not full SM-2 — see [[ADR future note]] in `18-future-roadmap.md`):
+**Revision level → interval mapping** (simple leveled re-queue, deliberately not full SM-2 — see `18-future-roadmap.md` §9):
 
 | Result | Level change | Next revision interval |
 |---|---|---|
-| `forgot` | reset to `level = 0` | +1 day |
-| `shaky` | stays / `level = max(level-1, 0)` | +3 days |
-| `confident` | `level = min(level+1, 4)` | +7, 14, 30, 60, 90 days by level |
+| `forgot` | reset to `level = 0` | +10 minutes (short relearning step) |
+| `shaky` | `level = max(level-1, 0)` | +1, 2, 4, 7, 14 days by (post-decrement) level |
+| `confident` | `level = min(level+1, 4)` | +7, 14, 30, 60, 90 days by (post-increment) level |
 
-This directly implements the reference behavior: "80 of 100 done, 20 remaining stuck → second revision pass targets only the 20 still due", because `nextRevisionAt <= now` is the sole query predicate for "what's due" — items marked `confident` simply fall out of the due set until their (growing) interval elapses.
+The first shipped version scheduled every `forgot` a flat 1 day out regardless of how many times in a row a card was missed, so a repeatedly-failed card could never resurface again the same day — pressing "forgot" 10 times in a row produced the same result as pressing it once. `forgot` now uses a short, level-independent relearning step (minutes, not days) instead, so a card you just failed can come back for another attempt in the same session. `shaky` picked up the same level-indexed ladder `confident` already had, for the same reason — it was previously a flat 3 days regardless of level.
+
+This directly implements the reference behavior: "80 of 100 done, 20 remaining stuck → second revision pass targets only the 20 still due", because `nextRevisionAt <= now` is the sole query predicate for "what's due" — items marked `confident` simply fall out of the due set until their (growing) interval elapses. When the due set is empty, `GET /progress/revision/due` also returns a `nextUp: { at, count }` field (soonest upcoming `nextRevisionAt` across marked cards, and how many are queued) so the UI can say "you're caught up — next review in X" instead of showing a bare empty state.
 
 A `UserProgress` row is created lazily on first interaction (first bookmark/note/revision-mark), not pre-created for every (user, card) pair — avoids an O(users × cards) row explosion.
 

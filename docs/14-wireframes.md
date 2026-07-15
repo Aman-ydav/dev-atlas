@@ -46,7 +46,7 @@ State machine for this chrome (Expanded / CollapsedIcon / Sheet) is `13-ux-flows
 └────────────────────────┘└──────────────────────────────────────────────────────────┘
 ```
 
-`[<]` collapses the rail to a 3rem icon-only strip; the same control becomes the hamburger `[≡]` on mobile. The mobile-collapsed shape of this exact shell is shown in §18.
+`[<]` collapses the rail to a 3.5rem icon-only strip; the same control becomes the hamburger `[≡]` on mobile. The mobile-collapsed shape of this exact shell is shown in §18.
 
 ---
 
@@ -322,28 +322,55 @@ Route `/search`. States: `13-ux-flows.md` §4.
 
 ## 11. Revision
 
-Route `/revision`. Tab states: `13-ux-flows.md` §7; in-session mechanics: `12-user-flows.md` §8b.
+Route `/revision`. One view, no tabs — states: `13-ux-flows.md` §7. Each due card renders inline with its own rating controls, rather than handing off to a separate full-screen "session" — a due card and its `RevisionControls` are the same component pairing used everywhere else a card + controls appear together.
+
+```
+ Revision                                                          [1 due →sidebar badge]
+
+ ───────────────────────────────────────────────────────────────────────
+  The `this` Keyword & Context Binding      Concept · Intermediate
+  #this-keyword  #binding  #arrow-functions
+ ───────────────────────────────────────────────────────────────────────
+  [not_started ▾]   [🔖][♡][📌][↺ marked]   How well did you recall this? (i)
+                     [ Forgot · 10m ]  [ Shaky · 1d ]  [ Confident · 14d ]
+ ───────────────────────────────────────────────────────────────────────
+
+ ...next due card, same shape...
+```
+
+Submitting a rating shows a toast ("Scheduled for review in 10 minutes") and the card drops out of the list on refetch. When the list is empty:
 
 ```
  Revision
 
- ● Due Now (7)     ○ Favorites (12)     ○ Pinned (6)     ○ In Progress (4)
- ───────────────────────────────────────────────────────────────────────
-  Morris Traversal          DSA   overdue 3 days         last: forgot
-  JWT                       CPT   due today                last: shaky
-  CAP Theorem                CPT   due today                last: confident
-  ...
- ───────────────────────────────────────────────────────────────────────
-                             [ Start Session ]
-
- ── in-session — reads as the ordinary Knowledge Card page (§5) ──────────
-  ... full card renders normally, nothing hidden to force recall ...
- ───────────────────────────────────────────────────────────────────────
-  How confident were you?     [ Forgot ]   [ Shaky ]   [ Confident ]
-
- ── session complete ──────────────────────────────────────────────────
-  All caught up — reviewed 7 cards.        (plain count, not a score/streak)
+                              ↺
+                     You're caught up
+              Next review in 9 minutes.
 ```
+
+(or, if nothing has ever been marked for revision at all: "Mark a card 'for revision' while reading it, and it'll queue up here when it's due.")
+
+---
+
+## 11b. Saved (Bookmarks / Favorites / Pinned)
+
+Route `/bookmarks` (sidebar label "Saved"). Tab states + the Bookmark/Favorite/Pin distinction: `13-ux-flows.md` §7b.
+
+```
+ Saved
+ Everything you've bookmarked, favorited, or pinned, grouped by type. (i)
+
+ ● Bookmarked      ○ Favorites (2)      ○ Pinned (1)
+ ───────────────────────────────────────────────────────────────────────
+ CONCEPTS (1)
+  ┌──────────────────────────────────────────────────────────────┐  [×]
+  │ Concept · Beginner                                            │
+  │ How the Internet Works                                        │
+  │ Computer Networks           11 min   #networking #dns #tcp    │
+  └──────────────────────────────────────────────────────────────┘
+```
+
+Sections only render for types that have at least one item (a user with only Concept cards saved never sees empty DSA/Interview/Project headers). Each card's `[×]` un-toggles it for the active tab without navigating to the card.
 
 ---
 

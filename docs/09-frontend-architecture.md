@@ -241,31 +241,40 @@ export const toQueryString = (params = {}) => { /* builds "?a=1&b=2", drops null
 
 Headline rule: **tags are per-item, not per-collection.** `knowledgeApi.js`'s `getKnowledgeList` provides `{type:"Knowledge", id: slug}` for every item *plus* the collection-level `"KnowledgeList"` tag; a single-card edit invalidates only that card's cache entry and the list tag, leaving every other open card's cache warm. The full mechanics — including the deliberate `progressApi` → `Dashboard` cross-feature tag fan-out (so a revision submission doesn't leave a stale `revisionDueCount` on screen) and where optimistic updates are and aren't used — are documented in `16-performance-design.md` §5.1 and not repeated here; that section is authoritative for cache tuning, this one is authoritative for *where the files live*.
 
-### 3.6 `baseQuery` — current implementation vs. the reauth target
+### 3.6 `baseQuery` — silent reauth on 401
 
-**Today:** `apiSlice.js` uses a plain `fetchBaseQuery({ baseUrl: "/api/v1", credentials: "include" })`. `authApi.js` already defines a `refresh` mutation (`POST /auth/refresh`), but nothing calls it automatically — a mid-session access-token expiry (15 min TTL per `15-security-design.md` §4) currently surfaces as a bare 401 on whatever query happened to fire next, and the only place that's actually handled is `ProtectedRoute`'s top-level `isError` → redirect to `/login`. That's correct behavior for a hard-expired session, but it discards a still-valid refresh token unnecessarily on every 15-minute boundary.
-
-**Recommended evolution** (small, additive — doesn't change the endpoint files above): wrap the base query so a 401 triggers exactly one silent refresh-and-retry before giving up, matching the rotation-on-use semantics `15-security-design.md` §4 specifies (single retry, no loop — a second failure means the refresh token itself is invalid/revoked, not a race to keep retrying):
+`apiSlice.js` wraps a plain `fetchBaseQuery({ baseUrl: "/api/v1", credentials: "include" })` in a `baseQueryWithReauth` function: on any 401, it calls `POST /auth/refresh` (already correct on the backend — rotation-on-use, single retry, no loop, per `15-security-design.md` §4) and retries the original request exactly once before giving up. A mid-session access-token expiry (15 min TTL) now resolves silently instead of discarding a still-valid refresh token and dropping the user to `/login`.
 
 ```js
-// store/api/apiSlice.js — target shape
+// store/api/apiSlice.js — shipped shape
 const rawBaseQuery = fetchBaseQuery({ baseUrl: "/api/v1", credentials: "include" });
+
+let refreshPromise = null;
 
 const baseQueryWithReauth = async (args, api, extraOptions) => {
   let result = await rawBaseQuery(args, api, extraOptions);
-  if (result.error?.status === 401 && args?.url !== "/auth/refresh") {
-    const refreshed = await rawBaseQuery({ url: "/auth/refresh", method: "POST" }, api, extraOptions);
+  const isRefreshCall = typeof args === "object" && args.url === "/auth/refresh";
+  if (result.error?.status === 401 && !isRefreshCall) {
+    // Several queries can 401 at once when the token expires — share one
+    // in-flight refresh instead of racing concurrent calls against the
+    // backend's rotate-on-use guard (a second concurrent refresh would find
+    // the first one's new refresh token already invalidated the old one).
+    refreshPromise ??= rawBaseQuery({ url: "/auth/refresh", method: "POST" }, api, extraOptions).finally(() => {
+      refreshPromise = null;
+    });
+    const refreshed = await refreshPromise;
     if (refreshed.data) {
       result = await rawBaseQuery(args, api, extraOptions); // retry the original call exactly once
-    } else {
-      api.dispatch(clearAuth()); // refresh itself failed — let ProtectedRoute's useGetMeQuery redirect
     }
+    // refresh itself failed (refresh token also expired/revoked) — the
+    // original 401 propagates unchanged; ProtectedRoute's useGetMeQuery
+    // sees isError and redirects, same as before this wrapper existed.
   }
   return result;
 };
 ```
 
-This is the only planned change to `apiSlice.js` itself; every injected endpoint file is unaffected since they all go through `builder.query`/`builder.mutation` against the same `baseQuery` reference regardless of what's inside it.
+The in-flight dedup (`refreshPromise`) matters in practice, not just in theory: several queries commonly fire close together on a page mount, and without it they'd each independently call `/auth/refresh`, racing against the backend's token-rotation guard — only the first would succeed, the rest would see their refresh token already superseded and fail as "revoked." This is the only change to `apiSlice.js` itself; every injected endpoint file is unaffected since they all go through `builder.query`/`builder.mutation` against the same `baseQuery` reference regardless of what's inside it.
 
 ---
 
@@ -294,10 +303,11 @@ This is a product requirement (`01-product-vision.md`), not a taste preference, 
 
 ### 4.4 The narrow, deliberate color exceptions
 
-Two categories of code carry actual color, and both are content/data semantics, not brand decoration — don't extend either pattern to UI chrome:
+Three categories of code carry actual color, and all three are content/data semantics, not brand decoration — don't extend any of them to UI chrome:
 
 - **`--destructive`** (a red oklch hue, both themes) — the one universally-accepted functional exception for delete/error/mistake affordances (`Badge variant="destructive"` on `InterviewQuestionsList`'s `commonMistakes`, form validation states).
 - **Highlight colors** (`HighlightableContent.jsx`'s `COLORS = { yellow, green, blue, pink }`) and **Mermaid's `themeVariables`** (`MermaidDiagram.jsx`) are hardcoded hex, deliberately outside the token system — highlight colors are *user-chosen annotation semantics* (the same reason a real highlighter has four colors), and Mermaid's theming API doesn't consume CSS variables. Both are flagged with their own gaps in `11-design-system.md` (Mermaid specifically never re-themes for dark mode today) — fix targets, but not a precedent for adding color anywhere else.
+- **Code block syntax highlighting** (`--code-editor-*` variables in `index.css`, a VS Code Dark+ palette, applied via the `.hljs-*` rules and consumed by `CodeBlock.jsx`) — fixed dark colors regardless of page theme, the same convention GitHub/VS Code docs/most technical sites use. A fenced code block is content, not chrome, and real syntax color is what "reads like a code editor" actually means; this is the one place the grayscale rule doesn't apply at all, by design, not an oversight. See `11-design-system.md` §2.8.
 
 ---
 
@@ -349,7 +359,7 @@ flowchart TD
 
 ### 6.1 `MarkdownRenderer`
 
-`react-markdown` + `remark-gfm` + `rehype-highlight`, styled entirely through Tailwind's arbitrary-descendant-selector syntax (`[&_h1]:...`, `[&_pre]:...`) rather than a `@tailwindcss/typography` plugin — this keeps every prose rule co-located in one component file and pegged to the same design tokens as the rest of the app (`bg-[var(--code-bg)]`, `border-border`) instead of a generic third-party prose scale. `rehype-highlight`'s output classes are themed once in `index.css` (`.hljs`, `.hljs-keyword`, etc.) using a deliberately restrained palette — see `11-design-system.md` for the exact rule mapping. This is the single component every block on the Knowledge Card skeleton routes through, directly or via `HighlightableContent`.
+`react-markdown` + `remark-gfm` + `rehype-highlight`, styled entirely through Tailwind's arbitrary-descendant-selector syntax (`[&_h1]:...`, `[&_pre]:...`) rather than a `@tailwindcss/typography` plugin — this keeps every prose rule co-located in one component file and pegged to the same design tokens as the rest of the app (`bg-[var(--code-bg)]`, `border-border`) instead of a generic third-party prose scale. `rehype-highlight`'s output classes are themed once in `index.css` (`.hljs`, `.hljs-keyword`, etc.) using a real VS Code Dark+ palette (`--code-editor-*` variables, fixed dark regardless of page theme) — see `11-design-system.md` §2.8 for the exact rule mapping and why this is the one deliberate exception to the grayscale rule. `MarkdownRenderer` passes `components={{ pre: CodeBlock }}` to `ReactMarkdown`, so every fenced code block — including one an admin drops in mid-paragraph via `MarkdownField`'s toolbar (§6.4) — gets the editor treatment, not just the ones already flowing through `CodeExamplesList`. This is the single component every block on the Knowledge Card skeleton routes through, directly or via `HighlightableContent`.
 
 ### 6.2 Highlight / annotation overlay and re-anchoring strategy
 
@@ -360,9 +370,21 @@ flowchart TD
 1. **Duplicate substrings anchor to the first occurrence only** — if a block contains the same sentence twice, both instances get whichever the `TreeWalker` finds first. Offsets, if implemented, would disambiguate this.
 2. **A highlight silently stops re-appearing if an admin edit changes the surrounding text enough that `quote` no longer appears verbatim** — the annotation row still exists in the DB (visible in the "highlights on this block" chip list at the bottom of `HighlightableContent`), it just won't re-anchor into the prose until the user re-selects it, since `indexOf` finds no match. This is accepted as a rare-edge-case cost of admin content edits, not silently fixed by falling back to offsets today.
 
-### 6.3 The `CodeBlock` gap
+### 6.3 `CodeBlock` — the editor-style fenced-block renderer
 
-`CodeExamplesList.jsx` currently renders each `{label, language, code}` example by **re-serializing it into a fenced markdown string** (`` "```" + language + "\n" + code + "\n```" ``) and feeding it back through `MarkdownRenderer` just to reuse `rehype-highlight`'s output. `14-wireframes.md` §5 shows a `[Copy]` affordance on every code block that doesn't exist in the code today. Both gaps close with the same fix: a standalone `CodeBlock` component (spec in `10-component-library.md` §4) that owns syntax highlighting + a copy-to-clipboard button directly, used two ways — as `MarkdownRenderer`'s `components={{ pre: CodeBlock }}` override (so a fenced block *inside* prose gets a copy button too), and called directly by `CodeExamplesList` with its structured props instead of the markdown round-trip.
+`CodeBlock.jsx` (`components/knowledge/CodeBlock.jsx`) is `MarkdownRenderer`'s `pre` override: a language label, a copy-to-clipboard button, and the `--code-editor-*` VS Code Dark+ palette (§6.1). It has one special case worth knowing about — a ` ```mermaid ` fenced block renders as a live `MermaidDiagram` instead of code text. That single branch is what makes a mermaid diagram embeddable *inline, anywhere* inside a markdown field (§6.4), not just via the one dedicated `content.visualization` field `VisualizationBlock` renders separately.
+
+`CodeExamplesList.jsx` still renders each `{label, language, code}` example by re-serializing it into a fenced markdown string and feeding it through `MarkdownRenderer` — a stylistic characteristic, not a gap anymore: because `CodeBlock` now exists and is wired into that same pipeline, this round-trip gets the identical editor treatment (copy button, real colors) for free. It has not been refactored to call `CodeBlock` directly with structured props; there's no known reason it needs to be.
+
+### 6.4 `MarkdownField` — inline media embedding for admins
+
+`components/admin/MarkdownField.jsx` wraps a `Textarea` with a small toolbar (Image, Diagram) and a Write/Preview toggle, used on every field `MarkdownRenderer` actually renders on the public side: `content.tldr`, `content.explanation`, `content.mistakes[].explanation`, `content.interviewQuestions[].idealAnswer`, the `dsa` `approach` field, the `project` architecture/database/api/deployment notes, and `challenges[].description`. `RepeatableRows` gained a `type: "markdown"` field-config option for the ones nested inside repeatable rows (mistakes, interview questions, challenges).
+
+- **Image** uploads via the existing `useUploadFileMutation` (Cloudinary, `POST /uploads`) and inserts `![alt](url)` at the cursor using the native `HTMLTextAreaElement.setRangeText` API — chosen over manual `selectionStart`/`selectionEnd` splicing + `requestAnimationFrame` cursor restoration because it updates the DOM value and places the cursor in one call, synchronously, with no timing race against React's re-render.
+- **Diagram** inserts a ` ```mermaid ` fence template at the cursor; the admin edits the diagram source in place and can switch to Preview to see it render live via the same `CodeBlock` → `MermaidDiagram` path §6.3 describes — there is no separate preview renderer.
+- The `Textarea` stays mounted (just visually hidden via a `hidden` class) while in Preview mode specifically so its ref and cursor position survive the tab switch — conditionally unmounting it would drop the ref exactly when a toolbar click needs it.
+
+This is additive to, not a replacement for, the single dedicated `content.visualization` field (§ below on `VisualizationBlock`) — that field is still the one "headline" diagram shown in its own section; `MarkdownField` is for anything else, anywhere in the text.
 
 ---
 
