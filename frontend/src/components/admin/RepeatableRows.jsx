@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { MarkdownField } from "@/components/admin/MarkdownField";
 
 // Generic "list of small objects" editor shared by codeExamples, mistakes,
 // interviewQuestions, challenges, decisions — every admin-form array field
@@ -43,8 +44,17 @@ export function RepeatableRows({ label, items, onChange, fields, addButtonLabel 
                         </button>
                         {fields.map((field) => (
                             <div key={field.key} className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">{field.label}</Label>
-                                {field.type === "textarea" ? (
+                                {field.type !== "markdown" && (
+                                    <Label className="text-xs text-muted-foreground">{field.label}</Label>
+                                )}
+                                {field.type === "markdown" ? (
+                                    <MarkdownField
+                                        label={field.label}
+                                        value={row[field.key]}
+                                        onChange={(v) => updateRow(index, field.key, v)}
+                                        className="min-h-24"
+                                    />
+                                ) : field.type === "textarea" ? (
                                     <Textarea
                                         value={row[field.key] || ""}
                                         onChange={(e) => updateRow(index, field.key, e.target.value)}

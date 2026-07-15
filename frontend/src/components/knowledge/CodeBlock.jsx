@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { MermaidDiagram } from "@/components/knowledge/MermaidDiagram";
 
 const extractText = (node) => {
     if (typeof node === "string") return node;
@@ -11,12 +12,19 @@ const extractText = (node) => {
 
 // Overrides react-markdown's default <pre><code> for fenced code blocks —
 // adds the language label + copy button a real editor/doc site has, which
-// no amount of CSS on the plain <pre> tag alone can provide.
+// no amount of CSS on the plain <pre> tag alone can provide. A ```mermaid
+// fence is special-cased to render as a live diagram instead of code text,
+// which is what lets a diagram be dropped in anywhere inside a markdown
+// field rather than only via the single dedicated Visualization field.
 export function CodeBlock({ children }) {
     const [copied, setCopied] = useState(false);
     const codeElement = Array.isArray(children) ? children[0] : children;
     const className = codeElement?.props?.className || "";
     const language = /language-(\w+)/.exec(className)?.[1] || "text";
+
+    if (language === "mermaid") {
+        return <MermaidDiagram source={extractText(codeElement)} />;
+    }
 
     const handleCopy = async () => {
         await navigator.clipboard.writeText(extractText(codeElement));

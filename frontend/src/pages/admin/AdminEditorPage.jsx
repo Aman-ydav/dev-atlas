@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { RepeatableRows } from "@/components/admin/RepeatableRows";
 import { LineListEditor } from "@/components/admin/LineListEditor";
 import { KnowledgeCombobox } from "@/components/admin/KnowledgeCombobox";
+import { MarkdownField } from "@/components/admin/MarkdownField";
 import { flattenCategories } from "@/lib/flattenCategories";
 import { useGetCategoryTreeQuery } from "@/store/api/categoryApi";
 import { useGetCompaniesQuery } from "@/store/api/companyApi";
@@ -356,14 +357,18 @@ export default function AdminEditorPage() {
             <Separator />
 
             <section className="space-y-4">
-                <div className="space-y-1.5">
-                    <Label>TL;DR</Label>
-                    <Textarea value={form.content.tldr} onChange={(e) => setContent("tldr", e.target.value)} className="min-h-16" />
-                </div>
-                <div className="space-y-1.5">
-                    <Label>Explanation (markdown)</Label>
-                    <Textarea value={form.content.explanation} onChange={(e) => setContent("explanation", e.target.value)} className="min-h-40 font-mono text-sm" />
-                </div>
+                <MarkdownField
+                    label="TL;DR"
+                    value={form.content.tldr}
+                    onChange={(v) => setContent("tldr", v)}
+                    className="min-h-16"
+                />
+                <MarkdownField
+                    label="Explanation"
+                    value={form.content.explanation}
+                    onChange={(v) => setContent("explanation", v)}
+                    className="min-h-40"
+                />
 
                 <div className="space-y-1.5">
                     <Label>Visualization</Label>
@@ -414,7 +419,7 @@ export default function AdminEditorPage() {
                     onChange={(v) => setContent("mistakes", v)}
                     fields={[
                         { key: "title", label: "Title" },
-                        { key: "explanation", label: "Explanation", type: "textarea" },
+                        { key: "explanation", label: "Explanation", type: "markdown" },
                     ]}
                 />
 
@@ -424,7 +429,7 @@ export default function AdminEditorPage() {
                     onChange={(v) => setContent("interviewQuestions", v)}
                     fields={[
                         { key: "question", label: "Question" },
-                        { key: "idealAnswer", label: "Ideal answer", type: "textarea" },
+                        { key: "idealAnswer", label: "Ideal answer", type: "markdown" },
                         { key: "followUps", label: "Follow-ups (one per line)", type: "textarea" },
                         { key: "commonMistakes", label: "Common mistakes (one per line)", type: "textarea" },
                     ]}
@@ -504,10 +509,12 @@ export default function AdminEditorPage() {
                             <Label>Constraints</Label>
                             <Textarea value={form.constraints} onChange={(e) => set("constraints", e.target.value)} className="min-h-16" />
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Approach (strategy-level, not the full solution)</Label>
-                            <Textarea value={form.approach} onChange={(e) => set("approach", e.target.value)} className="min-h-24" />
-                        </div>
+                        <MarkdownField
+                            label="Approach (strategy-level, not the full solution)"
+                            value={form.approach}
+                            onChange={(v) => set("approach", v)}
+                            className="min-h-24"
+                        />
                         <LineListEditor label="Hints (one per line)" value={form.hints} onChange={(v) => set("hints", v)} />
                     </section>
                 </>
@@ -570,17 +577,14 @@ export default function AdminEditorPage() {
                             ["apiNotes", "API"],
                             ["deploymentNotes", "Deployment"],
                         ].map(([key, label]) => (
-                            <div key={key} className="space-y-1.5">
-                                <Label>{label}</Label>
-                                <Textarea value={form[key]} onChange={(e) => set(key, e.target.value)} className="min-h-20" />
-                            </div>
+                            <MarkdownField key={key} label={label} value={form[key]} onChange={(v) => set(key, v)} className="min-h-20" />
                         ))}
 
                         <RepeatableRows
                             label="Challenges"
                             items={form.challenges}
                             onChange={(v) => set("challenges", v)}
-                            fields={[{ key: "title", label: "Title" }, { key: "description", label: "Description", type: "textarea" }]}
+                            fields={[{ key: "title", label: "Title" }, { key: "description", label: "Description", type: "markdown" }]}
                         />
                         <RepeatableRows
                             label="Decisions"
