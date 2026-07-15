@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { PlusIcon, TrashIcon, UploadIcon, XIcon } from "lucide-react";
+import { InfoIcon, PlusIcon, TrashIcon, UploadIcon, XIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { PageLoader } from "@/components/shared/PageLoader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { RepeatableRows } from "@/components/admin/RepeatableRows";
@@ -371,7 +372,18 @@ export default function AdminEditorPage() {
                 />
 
                 <div className="space-y-1.5">
-                    <Label>Visualization</Label>
+                    <div className="flex items-center gap-1.5">
+                        <Label>Visualization</Label>
+                        <Tooltip>
+                            <TooltipTrigger render={<InfoIcon className="size-3.5 text-muted-foreground" />} />
+                            <TooltipContent className="max-w-64">
+                                This is the one headline diagram shown in its own section. For extra diagrams or
+                                images at a specific point in the text, use the Image/Diagram buttons inside
+                                Explanation (or any other field below) instead — those insert inline, right where
+                                the cursor is.
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
                     <Select value={form.content.visualization.kind} onValueChange={(v) => setVisualization("kind", v)}>
                         <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                         <SelectContent>
