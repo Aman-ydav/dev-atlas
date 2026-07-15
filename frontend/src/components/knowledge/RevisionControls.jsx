@@ -19,7 +19,6 @@ const RESULTS = [
     { key: "shaky", label: "Shaky" },
     { key: "confident", label: "Confident" },
 ];
-const LEVEL_COUNT = 5;
 
 // Mirrors backend/src/constants.js REVISION_RELEARNING_MINUTES / REVISION_INTERVAL_DAYS
 // — preview-only, so the buttons can show "next review in ~X" before the
@@ -44,7 +43,6 @@ export function RevisionControls({ knowledgeId }) {
 
     const toggle = (field) => updateProgress({ knowledgeId, [field]: !progress?.[field] });
     const level = progress?.revision?.level ?? 0;
-    const hasHistory = (progress?.revision?.history?.length ?? 0) > 0;
 
     const handleResult = async (result) => {
         try {
@@ -120,11 +118,6 @@ export function RevisionControls({ knowledgeId }) {
                             <span className="text-muted-foreground">· {previewInterval(r.key, level)}</span>
                         </Button>
                     ))}
-                    {hasHistory && (
-                        <span className="text-muted-foreground">
-                            Level {level + 1} of {LEVEL_COUNT}
-                        </span>
-                    )}
                 </div>
             )}
         </div>
