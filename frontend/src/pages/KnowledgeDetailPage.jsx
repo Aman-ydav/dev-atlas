@@ -13,6 +13,7 @@ import { InterviewQuestionsList } from "@/components/knowledge/InterviewQuestion
 import { RelatedTopics } from "@/components/knowledge/RelatedTopics";
 import { PersonalNotes } from "@/components/knowledge/PersonalNotes";
 import { MarkdownRenderer } from "@/components/knowledge/MarkdownRenderer";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { selectIsAdmin } from "@/store/slices/authSlice";
@@ -128,14 +129,18 @@ export default function KnowledgeDetailPage() {
 
             {content.mistakes?.length > 0 && (
                 <Section title="Common Mistakes">
-                    <div className="space-y-3">
+                    <Accordion type="single" className="w-full">
                         {content.mistakes.map((mistake, i) => (
-                            <div key={i} className="rounded-lg border border-border p-3">
-                                <p className="mb-1 text-sm font-medium">{mistake.title}</p>
-                                <MarkdownRenderer content={mistake.explanation} />
-                            </div>
+                            <AccordionItem key={i} value={`mistake-${i}`}>
+                                <AccordionTrigger className="text-left text-sm font-medium">
+                                    {mistake.title}
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <MarkdownRenderer content={mistake.explanation} />
+                                </AccordionContent>
+                            </AccordionItem>
                         ))}
-                    </div>
+                    </Accordion>
                 </Section>
             )}
 
