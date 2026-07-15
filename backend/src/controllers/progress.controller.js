@@ -7,6 +7,16 @@ import { parsePagination, buildPaginatedResponse } from "../utils/pagination.js"
 const addDays = (date, days) => new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
 
+// Shared by every list endpoint that renders a KnowledgeCard (due, bookmarks,
+// pinned, favorites) — category was previously left as a bare ObjectId and
+// readTimeMinutes/pattern/tagline weren't selected at all, so those cards
+// rendered visibly sparser than the same cards everywhere else in the app.
+const KNOWLEDGE_CARD_POPULATE = {
+    path: "knowledge",
+    select: "title slug type category difficulty tags readTimeMinutes pattern tagline",
+    populate: { path: "category", select: "name" },
+};
+
 const findOrDefault = async (userId, knowledgeId) => {
     const progress = await UserProgress.findOne({ user: userId, knowledge: knowledgeId });
     if (progress) return progress;
@@ -93,7 +103,7 @@ const getDueForRevision = asyncHandler(async (req, res) => {
 
     const [items, total] = await Promise.all([
         UserProgress.find(filter)
-            .populate("knowledge", "title slug type category difficulty tags")
+            .populate(KNOWLEDGE_CARD_POPULATE)
             .sort({ "revision.nextRevisionAt": 1 })
             .skip(skip)
             .limit(limit),
@@ -136,7 +146,7 @@ const makeListEndpoint = (field) =>
 
         const [items, total] = await Promise.all([
             UserProgress.find(filter)
-                .populate("knowledge", "title slug type category difficulty tags")
+                .populate(KNOWLEDGE_CARD_POPULATE)
                 .sort({ updatedAt: -1 })
                 .skip(skip)
                 .limit(limit),

@@ -1,67 +1,132 @@
 import { useState } from "react";
-import { BookmarkIcon } from "lucide-react";
+import { BookmarkIcon, HeartIcon, PinIcon, XIcon } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { KnowledgeCard } from "@/components/knowledge/KnowledgeCard";
+import { TYPE_META } from "@/components/knowledge/TypeBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Button } from "@/components/ui/button";
-import { useGetBookmarksQuery } from "@/store/api/progressApi";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    useGetBookmarksQuery,
+    useGetFavoritesQuery,
+    useGetPinnedQuery,
+    useUpdateProgressMutation,
+} from "@/store/api/progressApi";
 
 export default function BookmarksPage() {
-    const [page, setPage] = useState(1);
-    const { data, isLoading } = useGetBookmarksQuery({ page, limit: 12 });
+    const [tab, setTab] = useState("bookmarked");
+    const [updateProgress] = useUpdateProgressMutation();
+
+    // Bookmarks/favorites/pinned are typically a few dozen items at most, so
+    // one full page grouped into sections reads better than paginating each
+    // type separately — 100 is this app's existing MAX_PAGE_SIZE ceiling.
+    const bookmarks = useGetBookmarksQuery({ limit: 100 });
+    const favorites = useGetFavoritesQuery({ limit: 100 });
+    const pinned = useGetPinnedQuery({ limit: 100 });
+
+    const TABS = [
+        { value: "bookmarked", label: "Bookmarked", icon: BookmarkIcon, field: "isBookmarked", query: bookmarks },
+        { value: "favorites", label: "Favorites", icon: HeartIcon, field: "isFavorite", query: favorites },
+        { value: "pinned", label: "Pinned", icon: PinIcon, field: "isPinned", query: pinned },
+    ];
 
     return (
         <div>
-            <PageHeader title="Bookmarks" description="Cards you've saved for later." />
+            <PageHeader
+                title="Saved"
+                description="Everything you've bookmarked, favorited, or pinned, grouped by type. Toggle any of these from a card's own page."
+            />
 
-            {isLoading && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <Skeleton key={i} className="h-32 rounded-xl" />
+            <Tabs value={tab} onValueChange={setTab}>
+                <TabsList variant="line">
+                    {TABS.map((t) => (
+                        <TabsTrigger key={t.value} value={t.value}>
+                            <t.icon className="size-3.5" />
+                            {t.label}
+                            {t.query.data?.total > 0 && (
+                                <span className="text-muted-foreground">{t.query.data.total}</span>
+                            )}
+                        </TabsTrigger>
                     ))}
-                </div>
-            )}
+                </TabsList>
+                {TABS.map((t) => (
+                    <TabsContent key={t.value} value={t.value}>
+                        <SavedGroup
+                            isLoading={t.query.isLoading}
+                            items={t.query.data?.items}
+                            emptyIcon={t.icon}
+                            emptyLabel={t.label}
+                            removeLabel={`Remove from ${t.label.toLowerCase()}`}
+                            onRemove={(knowledgeId) => updateProgress({ knowledgeId, [t.field]: false })}
+                        />
+                    </TabsContent>
+                ))}
+            </Tabs>
+        </div>
+    );
+}
 
-            {!isLoading && data?.items?.length === 0 && (
-                <Empty>
-                    <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                            <BookmarkIcon />
-                        </EmptyMedia>
-                        <EmptyTitle>No bookmarks yet</EmptyTitle>
-                        <EmptyDescription>Bookmark a card while reading it and it'll show up here.</EmptyDescription>
-                    </EmptyHeader>
-                </Empty>
-            )}
+function SavedGroup({ isLoading, items, emptyIcon: Icon, emptyLabel, removeLabel, onRemove }) {
+    if (isLoading) {
+        return (
+            <div className="space-y-3 pt-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 rounded-xl" />
+                ))}
+            </div>
+        );
+    }
 
-            {!isLoading && data?.items?.length > 0 && (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {data.items.map((entry) =>
-                            entry.knowledge ? <KnowledgeCard key={entry._id} knowledge={entry.knowledge} /> : null
-                        )}
-                    </div>
-                    {data.totalPages > 1 && (
-                        <div className="flex items-center justify-between border-t border-border pt-4 text-sm text-muted-foreground">
-                            <span>Page {data.page} of {data.totalPages}</span>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                                    Previous
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={page >= data.totalPages}
-                                    onClick={() => setPage((p) => p + 1)}
-                                >
-                                    Next
-                                </Button>
-                            </div>
+    if (!items?.length) {
+        return (
+            <Empty className="pt-4">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <Icon />
+                    </EmptyMedia>
+                    <EmptyTitle>Nothing {emptyLabel.toLowerCase()} yet</EmptyTitle>
+                    <EmptyDescription>
+                        Open any card and use the toolbar there to mark it — it'll show up here.
+                    </EmptyDescription>
+                </EmptyHeader>
+            </Empty>
+        );
+    }
+
+    const grouped = {};
+    for (const entry of items) {
+        const type = entry.knowledge?.type;
+        if (!type) continue;
+        (grouped[type] ??= []).push(entry);
+    }
+
+    return (
+        <div className="space-y-6 pt-4">
+            {Object.keys(TYPE_META)
+                .filter((type) => grouped[type]?.length)
+                .map((type) => (
+                    <div key={type}>
+                        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {TYPE_META[type].label}s
+                            <span className="ml-1 normal-case text-muted-foreground/70">({grouped[type].length})</span>
+                        </h3>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {grouped[type].map((entry) => (
+                                <div key={entry._id} className="relative">
+                                    <KnowledgeCard knowledge={entry.knowledge} />
+                                    <button
+                                        type="button"
+                                        aria-label={removeLabel}
+                                        onClick={() => onRemove(entry.knowledge._id)}
+                                        className="absolute right-2 top-2 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+                                    >
+                                        <XIcon className="size-3.5" />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
-            )}
+                    </div>
+                ))}
         </div>
     );
 }

@@ -1,7 +1,7 @@
 import { BookOpenIcon, BinaryIcon, MessageSquareTextIcon, FolderKanbanIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const TYPE_META = {
+export const TYPE_META = {
     concept: { label: "Concept", icon: BookOpenIcon },
     dsa: { label: "DSA", icon: BinaryIcon },
     interview: { label: "Interview", icon: MessageSquareTextIcon },

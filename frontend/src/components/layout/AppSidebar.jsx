@@ -38,7 +38,7 @@ const PRIMARY_NAV = [
 
 const PERSONAL_NAV = [
     { to: "/revision", label: "Revision", icon: RotateCcwIcon },
-    { to: "/bookmarks", label: "Bookmarks", icon: BookmarkIcon },
+    { to: "/bookmarks", label: "Saved", icon: BookmarkIcon },
 ];
 
 export function AppSidebar() {
