@@ -2,6 +2,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { cn } from "@/lib/utils";
+import { CodeBlock } from "@/components/knowledge/CodeBlock";
+
+const components = {
+    // Fenced code blocks (```lang) get the editor-style CodeBlock wrapper;
+    // inline `code` spans pass through untouched (styled via the [&_code...] rule below).
+    pre: CodeBlock,
+};
 
 // One prose ruleset for every rendered block (tldr, explanation, mistakes,
 // interview answers, project notes) — this is the "one long page, no tabs"
@@ -22,8 +29,8 @@ export function MarkdownRenderer({ content, className }) {
                 "[&_a]:underline [&_a]:underline-offset-4 [&_a]:text-foreground [&_a]:hover:text-muted-foreground",
                 "[&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
                 "[&_code:not(pre_code)]:rounded [&_code:not(pre_code)]:bg-[var(--code-bg)] [&_code:not(pre_code)]:px-1.5 [&_code:not(pre_code)]:py-0.5 [&_code:not(pre_code)]:font-mono [&_code:not(pre_code)]:text-[0.85em]",
-                "[&_pre]:mb-3 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border [&_pre]:bg-[var(--code-bg)] [&_pre]:p-3",
-                "[&_pre_code]:font-mono [&_pre_code]:text-[0.85em]",
+                "[&_pre_code]:font-mono [&_pre_code]:text-[0.85em] [&_pre_code]:leading-relaxed",
+                "[&_img]:my-3 [&_img]:max-w-full [&_img]:rounded-lg [&_img]:border [&_img]:border-border",
                 "[&_table]:mb-3 [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm",
                 "[&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-2 [&_th]:py-1 [&_th]:text-left",
                 "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1",
@@ -31,7 +38,7 @@ export function MarkdownRenderer({ content, className }) {
                 className
             )}
         >
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
                 {content}
             </ReactMarkdown>
         </div>

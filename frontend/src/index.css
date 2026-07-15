@@ -20,6 +20,25 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
+  /* Code blocks (multi-line <pre>, not inline `code`) are a fixed dark
+     "editor panel" regardless of page theme — the same convention GitHub,
+     VS Code docs, and most technical sites use, and the only place this app
+     departs from the light/dark-responsive palette above. Colors are the
+     VS Code Dark+ syntax palette, chosen because it's a widely-recognized,
+     already-legible reference rather than a bespoke scheme. Not redefined
+     under .dark below, so it stays constant in both page themes. */
+  --code-editor-bg: #1e1e2e;
+  --code-editor-border: #313244;
+  --code-editor-fg: #d4d4d4;
+  --code-editor-comment: #6a9955;
+  --code-editor-keyword: #c586c0;
+  --code-editor-string: #ce9178;
+  --code-editor-number: #b5cea8;
+  --code-editor-function: #dcdcaa;
+  --code-editor-type: #4ec9b0;
+  --code-editor-variable: #9cdcfe;
+  --code-editor-deletion: #f48771;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -210,47 +229,71 @@ body {
   html {
     @apply font-sans;}}
 
-/* Restrained, low-saturation syntax highlighting (rehype-highlight classes) —
-   deliberately not a stock hljs theme, to stay inside the no-gradient /
-   no-glow / grayscale-plus-one-accent system described in docs/11-design-system.md. */
+/* Syntax highlighting (rehype-highlight classes) inside the fixed dark code
+   panel (--code-editor-* above) — VS Code Dark+ palette. This is the one
+   deliberate exception to the grayscale/no-color UI: a code block is content,
+   not chrome, and real syntax color is what "read like a code editor" means
+   (see docs/11-design-system.md for the UI-chrome-stays-neutral rule this
+   doesn't apply to). */
 .hljs {
-  color: var(--foreground);
+  color: var(--code-editor-fg);
   background: transparent;
 }
 .hljs-comment,
 .hljs-quote {
-  color: var(--muted-foreground);
+  color: var(--code-editor-comment);
   font-style: italic;
 }
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-literal,
+.hljs-operator,
 .hljs-tag {
-  color: var(--foreground);
-  font-weight: 600;
+  color: var(--code-editor-keyword);
 }
 .hljs-string,
 .hljs-attr,
 .hljs-template-tag,
 .hljs-template-variable,
+.hljs-regexp,
 .hljs-addition {
-  /* --accent is a hover-fill token (near-white in light mode) — unsafe as
-     text color, so string/attr emphasis uses muted-foreground instead. */
-  color: var(--muted-foreground);
+  color: var(--code-editor-string);
 }
 .hljs-number,
+.hljs-literal.hljs-number {
+  color: var(--code-editor-number);
+}
 .hljs-symbol,
-.hljs-bullet {
-  color: var(--foreground);
+.hljs-bullet,
+.hljs-link {
+  color: var(--code-editor-variable);
 }
 .hljs-title,
+.hljs-title.function_,
+.hljs-title.class_ {
+  color: var(--code-editor-function);
+}
 .hljs-name,
 .hljs-section,
 .hljs-type,
-.hljs-built_in {
-  color: var(--foreground);
-  font-weight: 600;
+.hljs-class,
+.hljs-built_in,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: var(--code-editor-type);
+}
+.hljs-attribute,
+.hljs-variable,
+.hljs-property,
+.hljs-params {
+  color: var(--code-editor-variable);
 }
 .hljs-deletion {
-  color: var(--destructive);
+  color: var(--code-editor-deletion);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
 }
