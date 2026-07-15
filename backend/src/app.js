@@ -21,6 +21,13 @@ import activityRouter from "./routes/activity.routes.js";
 
 const app = express();
 
+// Render (and most PaaS hosts) put the app behind a reverse proxy — without
+// this, express-rate-limit keys every user by the proxy's own IP (one shared
+// bucket for everyone) instead of the real client IP from X-Forwarded-For,
+// and req.secure/cookie "Secure" detection can misbehave. No effect locally
+// (no proxy in front of `npm run dev`).
+app.set("trust proxy", 1);
+
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || "")
     .split(",")
     .map((o) => o.trim())
